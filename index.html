@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Alien Interview — 8 Species</title>
+<title>Alien Interview — 8 Species (2 Clear + 1 Vague)</title>
 <style>
   :root{--bg:#0b1020; --panel:#131a33; --text:#eef2ff; --accent:#7cf7d4; --muted:#93a1b3;}
   body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#060a18,#0b1020 30%,#0e1833);color:var(--text)}
@@ -12,7 +12,7 @@
   #app{max-width:900px;margin:0 auto;padding:16px}
   .chat{background:var(--panel);border:1px solid #1f2748;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35)}
   .spec{padding:12px 14px;border-bottom:1px solid #1f2748;background:#0b1530}
-  .spec h2{margin:0 0 6px 0;font-size:1.1rem}
+  .spec h2{margin:0 0 6px 0;font-size:1.15rem}
   .spec .meta{font-size:.9rem;color:#b3c4e0}
   .status{padding:6px 14px;background:#0b1530;font-size:.82rem;color:#7cf7d4;border-bottom:1px solid #1f2748}
   .log{height:min(64vh,600px);overflow:auto;padding:18px;scroll-behavior:smooth}
@@ -43,46 +43,94 @@
       <button id="send">Send</button>
     </div>
   </div>
-  <div class="footer">Each group gets 3 valid answers: <b>2 clear</b> and <b>1 vague</b>. Deflects don’t count.</div>
+  <div class="footer">Each group gets 3 valid evidence answers: <b>2 clear</b> and <b>1 vague</b>. Deflects don’t count.</div>
 </div>
 
 <script>
-/* helpers */
+/* ===== helpers ===== */
 const q=new URLSearchParams(location.search);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const rand=(min,max)=>Math.floor(Math.random()*(max-min+1))+min;
-const varify=s=>s.replace(/\{mins\}/g,()=>rand(2,8)).replace(/\{days\}/g,()=>rand(3,7));
+const varify=s=>s
+  .replace(/\{mins\}/g,()=>rand(2,8))
+  .replace(/\{days\}/g,()=>rand(3,7))
+  .replace(/\{mm\}/g,()=>rand(2,12));
 
-/* guard list */
-const NEVERSAY=['alive','are you alive','living','characteristics of life','homeostasis','metabolism','reproduction','stimuli','cellular'];
+/* ===== guard list (block direct "alive?" and vocab) ===== */
+const NEVERSAY=[
+  'alive','are you alive','is it alive','are you living',
+  'characteristics of life','homeostasis','metabolism','reproduction','stimuli','cellular organization','cells'
+];
 const DEFLECTS=[
-  "Do not ask me if I am alive. Ask about how I live, what I do, how I survive, etc."
+  "Do not ask me if I am alive. Ask about how I live, what I do, how I survive, etc.",
+  "Labels won’t help you. Gather evidence from what I do—needs, changes, young, reactions."
 ];
 
-/* wrappers */
+/* clarity wrappers */
 const C=t=>({text:t,clarity:'clear'});
 const V=t=>({text:t,clarity:'vague'});
 
-/* aliens (shortened: 2 clear + 1 vague per trait, as before) */
+/* ===== eight aliens (name, world, appearance, replies: energy/growth/repro with 2 clear + 1 vague) ===== */
 const ALIENS=[
-  {id:'1',name:'Aurelian Phototroph',world:'Erythra (tidally locked daylight pools)',
-   look:'Tall stalk with green fronds in shallow sunlit pools.',
+  {id:'1',name:'Aurelian Phototroph',world:'Erythra — tidally locked daylight pools',
+   look:'Tall stalk with wide green fronds; stands in warm, shallow, always‑sunny pools.',
    replies:{
-     energy:[C("When light shines, I spread my fronds and my sap fills with sugar."),C("Clouds slow my pulse, but bright light restores it quickly."),V("I like bright places.")],
-     growth:[C("Each season I add a ring; wounds seal the next day."),C("Marks on my stalk shift upward as new tissue forms."),V("I used to be smaller.")],
-     repro:[C("Warm months grow bulbs that drop and pulse on their own."),C("Frond coils with a partner form a bead that later moves."),V("Pieces sometimes appear near me.")]
+     energy:[C("When light shines, I spread my fronds and within {mins} minutes my sap shows more sugar."),C("Clouds slow my pulse, but bright blue light brings it back within minutes."),V("I like bright places.")],
+     growth:[C("Each season I add a ring to my stalk; if cut, the wound seals by the next day."),C("Mark me today and the mark shifts upward as new tissue forms."),V("I used to be smaller.")],
+     repro:[C("Warm months grow small bulbs on my side; after {days} days one drops and starts pulsing on its own."),C("When I press frond coils with a partner, a bead swells and later moves."),V("Sometimes little pieces appear near me.")]
    }},
-  {id:'2',name:'Ferrivore Lithotroph',world:'Varron (iron caves)',
-   look:'Low crawler with ridged plates in rusted tunnels.',
+  {id:'2',name:'Ferrivore Lithotroph',world:'Varron — iron‑rich cave planet',
+   look:'Low crawler with ridge plates and whiskers; lives in rusted tunnels with mineral drips.',
    replies:{
-     energy:[C("Iron filings fizz on my tongue; my core warms."),C("Thiosulfate drips speed my feeding fan."),V("Rocks taste good.")],
-     growth:[C("Cracks knit within days; I gain weight with ore."),C("New plates form along scars."),V("I feel sturdier after meals.")],
-     repro:[C("I press throat fans with a partner; later a pebble-egg cracks open."),C("A chipped plate buds a runt if it lands in seep."),V("Sometimes a small pebble follows me.")]
+     energy:[C("Iron filings fizz on my tongue; my core warms within {mins} minutes."),C("Thiosulfate drips make my feeding fan speed up; plain water does not."),V("Rocks taste good.")],
+     growth:[C("Cracks in my plates knit within {days} days; I gain a few grams when ore is plenty."),C("New plates form along scars by the end of the week."),V("I feel sturdier after meals.")],
+     repro:[C("I press throat fans with a partner; later a pebble‑egg hardens and then cracks open."),C("A chip of my plate buds a runt if it lands in the right seep."),V("Sometimes a small pebble follows me.")]
    }},
-   // … (repeat structure for other 6 aliens, trimmed for brevity)
+  {id:'3',name:'Cryo Ammonoform',world:'Thalos — icy moon with ammonia seas',
+   look:'Soft gel‑bodied swimmer with fins; breath clouds purple in the cold.',
+   replies:{
+     energy:[C("When I crack nitrite, a warm band appears in my core while I feed."),C("Given nitrate pads, my gill beats speed up within {mins} minutes."),V("Certain chemicals make me lively.")],
+     growth:[C("My outer sheath thickens each orbit; tears seal by the next dawn."),C("New rings form paler than old after each flood."),V("Rings show up sometimes.")],
+     repro:[C("During thaw I exhale threads that knot into beads; after {days} days the beads twitch."),C("Two of us braid whisker codes; a pouch grows under my mantle."),V("Sometimes beads appear near me.")]
+   }},
+  {id:'4',name:'Desert Strider',world:'Sere — thin‑air dune world',
+   look:'Long‑legged runner with big ears and pale coat; crosses hot dunes by day and cold sands by night.',
+   replies:{
+     energy:[C("Fat nodules melt to heat when I run; my speed stays steady for over {mins} minutes."),C("Sugared pulp lifts my pace; plain sand does not."),V("Food gives me energy.")],
+     growth:[C("My stride length increased this season; a cracked claw regrew in {days} days."),C("Old scars are overgrown by new, paler keratin."),V("My legs seem longer lately.")],
+     repro:[C("We pair at cold‑moon; below a nest‑heat threshold the kits fail to stir."),C("I bear two kits after many suns; shaded nests help them drink."),V("Sometimes I end up with small ones.")]
+   }},
+  {id:'5',name:'Colony Weaver',world:'Pelagia — warm reef pillars',
+   look:'Branching colony made of many units; outer fronds and inner feeding mouths on a stony skeleton.',
+   replies:{
+     energy:[C("Outer fronds gather light; inner mouths catch plankton and share the broth through threads."),C("When starved, feeding units swell while others shrink, then we rebalance."),V("We like sun and current.")],
+     growth:[C("New rooms bud at the rim each week; clipped branches seal within minutes."),C("The skeleton thickens in storms; calm weeks add frills."),V("We get bigger at the edges.")],
+     repro:[C("Each red moon we release tiny swimmers; a few land and start new pillars."),C("A chip can crawl off and anchor elsewhere."),V("Pieces drift away and sometimes start over.")]
+   }},
+  {id:'6',name:'Sky Sailor',world:'Aerolyth — gas‑giant upper atmosphere',
+   look:'Buoyant drifter with translucent gas sac, rim valves, and trailing tendrils; rides thermals.',
+   replies:{
+     energy:[C("Sun warms my sail; microbes crack trace gases—my lift and speed increase."),C("In richer currents I rise about {mm} mm in {mins} minutes without paddling."),V("Warm winds help me.")],
+     growth:[C("My gas sac thickens after rich currents; small tears knit within hours leaving silver seams."),C("Valve counts along my rim increase with age."),V("Edges look thicker over time.")],
+     repro:[C("Storm season I release dust‑spores that sleep until a warm eddy wakes them."),C("When two of us entwine, pods swell heavy by day {days}."),V("Sometimes dust comes off me.")]
+   }},
+  {id:'7',name:'Mire Crawler',world:'Morass — toxic swamp planet',
+   look:'Slug‑like scavenger with bristled flanks; leaves thick paste trails in warm, poisonous muck.',
+   replies:{
+     energy:[C("Rotting muck ferments warm in my gut; my heat rises while I feed."),C("Bark scrapings raise my crawl speed within {mins} minutes; metal salts slow me."),V("I like rotting stuff.")],
+     growth:[C("Each molt I leave a husk; scars fade as new flesh grows."),C("Lost feelers regrow by day {days}."),V("Old skin comes off sometimes.")],
+     repro:[C("I lay slime strings; hatchlings nibble through after {days} days."),C("Neck‑frill twists with a partner and eggs appear by dawn."),V("Small ones appear in my slime.")]
+   }},
+  {id:'8',name:'Crystal Singer',world:'Umbra — shadowed mountain caverns',
+   look:'Shimmering, faceted body with inner chambers; glows in response to certain sounds.',
+   replies:{
+     energy:[C("Mineral drips fizz inside me and I glow brighter for {mins} minutes."),C("A coppery trickle boosts my hum; plain water does not."),V("I like mineral water.")],
+     growth:[C("Cracks knit with new layers along the seam within {days} days."),C("Facets widen by about {mm} mm each season."),V("My edges seem wider year to year.")],
+     repro:[C("In duets we trade songs and a shardling sprouts at the join."),C("Moist cloth on a splinter wakes a tiny tremor by day {days}."),V("Splinters sometimes make small ones.")]
+   }}
 ];
 
-/* choose alien */
+/* ===== choose alien (random or ?alien=) ===== */
 function chooseAlien(){
   const wanted=(q.get('alien')||'').toLowerCase().trim();
   if(!wanted) return pick(ALIENS);
@@ -90,9 +138,10 @@ function chooseAlien(){
 }
 const A=chooseAlien();
 
-/* UI */
+/* ===== UI ===== */
 const spec=document.getElementById('spec');
-spec.innerHTML=`<h2>${A.name}</h2><div class="meta"><b>Home world:</b> ${A.world}<br/><b>Appearance:</b> ${A.look}</div>`;
+spec.innerHTML=`<h2>${A.name}</h2>
+  <div class="meta"><b>Home world:</b> ${A.world}<br/><b>Appearance / world:</b> ${A.look}</div>`;
 const log=document.getElementById('log'),box=document.getElementById('textbox'),btn=document.getElementById('send'),status=document.getElementById('status');
 
 function addMsg(role,text){
@@ -102,24 +151,39 @@ function addMsg(role,text){
   log.appendChild(row); log.scrollTop=log.scrollHeight;
 }
 
-/* intro */
-addMsg('alien',`I am <b>${A.name}</b> from <b>${A.world}</b>. I look like this: ${A.look}<br><br>Your task: decide if I am alive. <b>Ask about how I live, what I do, how I survive, etc.</b>`);
+/* intro speech */
+addMsg('alien',`I am <b>${A.name}</b> from <b>${A.world}</b>. I look like this: ${A.look}
+<br><br><b>Your task:</b> decide if I am alive using evidence. <b>Ask about how I live, what I do, how I survive, etc.</b> Do not ask me if I am alive; ask about my behaviors.`);
 
-/* logic: 3 valid answers = 2 clear + 1 vague */
+/* ===== routing & limits ===== */
+const ENERGY=['eat','food','hungry','fuel','drink','nutrient','sugar'];
+const GROWTH=['grow','bigger','smaller','size','age','develop','mature','ring','molt'];
+const REPRO=['baby','offspring','egg','spawn','bud','spore','reproduce','hatch'];
+
 let validCount=0, clearCount=0, vagueCount=0, locked=false;
+
 function updateStatus(){
-  if(locked){status.innerHTML=`<span class="done">🚫 You’ve asked 3 valid questions. Interview complete.</span>`;}
-  else{status.textContent=`Valid questions answered: ${validCount}/3`;}
+  if(locked){
+    status.innerHTML=`<span class="done">🚫 You’ve asked 3 valid questions. Interview complete — use your evidence.</span>`;
+  }else{
+    status.textContent=`Valid questions answered: ${validCount}/3 (goal: 2 clear + 1 vague)`;
+  }
 }
 updateStatus();
+
+function routeTopic(text){
+  const s=text.toLowerCase();
+  if(NEVERSAY.some(w=>s.includes(w))) return 'deflect';
+  if(ENERGY.some(k=>s.includes(k))) return 'energy';
+  if(GROWTH.some(k=>s.includes(k))) return 'growth';
+  if(REPRO.some(k=>s.includes(k))) return 'repro';
+  return pick(['energy','growth','repro']); // if unclear, choose one
+}
 
 function chooseClarity(){
   const remaining=3-validCount;
   const needClear=2-clearCount, needVague=1-vagueCount;
-  if(remaining===1){
-    if(needClear>0) return 'clear';
-    if(needVague>0) return 'vague';
-  }
+  if(remaining===1){ if(needClear>0) return 'clear'; if(needVague>0) return 'vague'; }
   if(needClear>needVague) return 'clear';
   if(needVague>needClear) return 'vague';
   if(clearCount>=2) return 'vague';
@@ -127,27 +191,34 @@ function chooseClarity(){
   return Math.random()<0.5?'clear':'vague';
 }
 
-function handleUser(text){
+function handle(text){
   if(locked) return;
-  addMsg('user',text);
-  const s=text.toLowerCase().trim();
-  if(!s) return;
-  if(NEVERSAY.some(w=>s.includes(w))){
-    addMsg('alien',pick(DEFLECTS)); return;
+  const t=text.trim(); if(!t) return;
+  addMsg('user',t);
+
+  const topic=routeTopic(t);
+  if(topic==='deflect'){
+    addMsg('alien',pick(DEFLECTS)); return; // does not count
   }
-  const topics=['energy','growth','repro'];
-  const choice=pick(topics);
-  const clarity=chooseClarity();
-  const bucket=A.replies[choice];
-  const pickReply=bucket.find(r=>r.clarity===clarity);
-  addMsg('alien',varify(pickReply.text));
-  validCount++; if(clarity==='clear') clearCount++; if(clarity==='vague') vagueCount++;
-  if(validCount>=3){locked=true;box.disabled=true;btn.disabled=true;}
+
+  // pick clarity & reply
+  const want=chooseClarity();
+  const bucket=A.replies[topic];
+  // bucket has 2 clear + 1 vague; pick any that matches clarity
+  const options=bucket.filter(r=>r.clarity===want);
+  const reply=options.length?pick(options):pick(bucket);
+  addMsg('alien',varify(reply.text));
+
+  // count only evidence replies
+  validCount++;
+  if(want==='clear') clearCount++; else vagueCount++;
+  if(validCount>=3){ locked=true; box.disabled=true; btn.disabled=true; }
   updateStatus();
 }
 
-btn.onclick=()=>{handleUser(box.value);box.value='';};
-box.addEventListener('keydown',e=>{if(e.key==='Enter')btn.click();});
+/* handlers */
+btn.onclick=()=>{ handle(box.value); box.value=''; };
+box.addEventListener('keydown',e=>{ if(e.key==='Enter') btn.click(); });
 </script>
 </body>
 </html>
