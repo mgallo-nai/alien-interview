@@ -56,13 +56,13 @@ const varify=s=>s
   .replace(/\{days\}/g,()=>rand(3,7))
   .replace(/\{mm\}/g,()=>rand(2,12));
 
-/* ===== guard list (block direct "alive?" and vocab) ===== */
+/* ===== guard list: block direct "alive?" and vocab ===== */
 const NEVERSAY=[
-  'alive','are you alive','is it alive','are you living',
+  'alive','are you alive','is it alive','are you living','living or nonliving',
   'characteristics of life','homeostasis','metabolism','reproduction','stimuli','cellular organization','cells'
 ];
 const DEFLECTS=[
-  "Do not ask me if I am alive. Ask about how I live, what I do, how I survive, etc.",
+  "Please do not ask if I am alive. Ask about how I live, what I do, how I survive, etc.",
   "Labels are not evidence. Ask about my needs, how I change, whether I have young, how I respond, and how I keep going."
 ];
 
@@ -70,64 +70,248 @@ const DEFLECTS=[
 const C=t=>({text:t,clarity:'clear'});
 const V=t=>({text:t,clarity:'vague'});
 
-/* ===== eight aliens (name, world, appearance/world as full sentences; replies: energy/growth/repro with 2 clear + 1 vague) ===== */
+/* ===== eight aliens, each with 3 clear + 3 vague answers for energy, growth, reproduction ===== */
 const ALIENS=[
-  {id:'1',name:'Aurelian Phototroph',world:'Erythra',look:
-    'I am a tall, stalk‑like organism with wide green fronds. I live in warm, shallow pools on the permanent daylight side of my tidally locked planet.',
-   replies:{
-     energy:[C("When bright light shines on me, I spread my fronds and within {mins} minutes my sap shows more sugar."),C("When a cloud blocks the light, my pulse slows; bright blue light brings it back within minutes."),V("I prefer bright places.")],
-     growth:[C("Each season I add a new ring to my stalk, and if I am cut the wound seals by the next day."),C("If you mark my stalk today, the mark moves upward as new tissue forms beneath it."),V("I used to be smaller.")],
-     repro:[C("During the warm months, small bulbs grow on my side; after {days} days one drops and begins to pulse on its own."),C("When I press my frond coils with a partner, a bead swells and later begins to move."),V("Sometimes little pieces appear near me.")]
-   }},
-  {id:'2',name:'Ferrivore Lithotroph',world:'Varron',look:
-    'I am a low crawler with ridge plates and sensing whiskers. I live in rust‑colored caves where mineral water drips through iron seams.',
-   replies:{
-     energy:[C("Iron filings fizz on my tongue, and within {mins} minutes my core becomes warmer."),C("Drips of thiosulfate make my feeding fan speed up, while plain water does not."),V("Rocks taste good.")],
-     growth:[C("Cracks in my plates knit closed within {days} days, and I gain a few grams when ore is plentiful."),C("New plates form along old scars by the end of the week."),V("I feel sturdier after meals.")],
-     repro:[C("I press my throat fans with a partner; later a pebble‑egg hardens and then cracks open."),C("A small chip of my plate can bud a runt if it lands in the right mineral seep."),V("Sometimes a small pebble follows me.")]
-   }},
-  {id:'3',name:'Cryo Ammonoform',world:'Thalos',look:
-    'I am a soft, gel‑bodied swimmer with thin fins. I live in very cold ammonia seas where my breath makes a purple cloud in the air.',
-   replies:{
-     energy:[C("When I crack nitrite for food, a warm band appears in my core while I feed."),C("If you give me nitrate pads, my gill beats speed up within {mins} minutes."),V("Certain chemicals make me feel lively.")],
-     growth:[C("My outer sheath thickens with each orbit, and tears seal by the next dawn."),C("After each flood, a new pale ring forms around me."),V("Rings show up sometimes.")],
-     repro:[C("During the thaw, I exhale threads that knot into beads; after {days} days the beads begin to twitch."),C("Two of us braid whisker codes, and a pouch grows under my mantle."),V("Sometimes beads appear near me.")]
-   }},
-  {id:'4',name:'Desert Strider',world:'Sere',look:
-    'I am a long‑legged runner with a pale coat and large ears. I travel across hot dunes by day and cross cold sands by night in a world with thin air.',
-   replies:{
-     energy:[C("When I run, fat nodules melt to make heat and my speed stays steady for more than {mins} minutes."),C("Sugared pulp increases my pace, while plain sand does nothing."),V("Food gives me energy.")],
-     growth:[C("My stride length increased this season, and a cracked claw regrew in {days} days."),C("Old scars become covered by new, paler keratin as I grow."),V("My legs seem longer lately.")],
-     repro:[C("We pair during the cold‑moon; if the nest is below a certain heat, the kits do not stir."),C("I bear two kits after many suns, and shaded nests help them drink."),V("Sometimes I end up with small ones.")]
-   }},
-  {id:'5',name:'Colony Weaver',world:'Pelagia',look:
-    'I am a branching colony made of many small units. I grow on warm reef pillars where outer fronds face the sun and inner mouths feed.',
-   replies:{
-     energy:[C("My outer fronds gather light, while inner mouths catch plankton and share the broth through living threads."),C("When we are starved, feeding units swell and others shrink until we rebalance."),V("We like sun and current.")],
-     growth:[C("New rooms bud at our rim each week, and clipped branches seal within minutes."),C("Our skeleton thickens during storms, while calm weeks add frills."),V("We get bigger at the edges.")],
-     repro:[C("Each red moon we release tiny swimmers, and a few land to start new pillars."),C("Sometimes a chip crawls away and anchors elsewhere to begin a new colony."),V("Pieces drift away and sometimes start over.")]
-   }},
-  {id:'6',name:'Sky Sailor',world:'Aerolyth',look:
-    'I am a buoyant drifter with a translucent gas sac, rim valves, and trailing tendrils. I ride warm air currents high in a gas‑giant atmosphere.',
-   replies:{
-     energy:[C("When the sun warms my sail, microbes crack trace gases and my lift and speed increase."),C("In richer currents I rise about {mm} millimeters in {mins} minutes without paddling."),V("Warm winds help me.")],
-     growth:[C("After rich currents my gas sac thickens, and small tears knit within hours to leave silver seams."),C("The number of valves along my rim increases as I age."),V("My edges look thicker over time.")],
-     repro:[C("During storm season I release dust‑spores that sleep until a warm eddy wakes them."),C("When two of us entwine, pods swell and grow heavy by day {days}."),V("Sometimes dust comes off me.")]
-   }},
-  {id:'7',name:'Mire Crawler',world:'Morass',look:
-    'I am a slug‑like scavenger with bristled flanks. I live in warm, poisonous swamps and often leave a thick paste trail behind me.',
-   replies:{
-     energy:[C("Rotting muck ferments warm inside me, and my body heat rises while I feed."),C("Bark scrapings make me crawl faster within {mins} minutes, but metal salts slow me down."),V("I like rotting stuff.")],
-     growth:[C("Each time I molt, I leave a husk and new flesh covers my scars."),C("If I lose a feeler, it regrows by day {days}."),V("Old skin comes off sometimes.")],
-     repro:[C("I lay slime strings, and hatchlings nibble out after {days} days."),C("When I twist my neck frill with a partner, eggs appear by dawn."),V("Small ones appear in my slime.")]
-   }},
-  {id:'8',name:'Crystal Singer',world:'Umbra',look:
-    'I am a shimmering, faceted being with many inner chambers. I live in cool, shadowed mountain caves and glow when I hear certain sounds.',
-   replies:{
-     energy:[C("Mineral drips fizz inside me and my glow becomes brighter for {mins} minutes."),C("A copper‑tasting trickle increases my hum, but plain water does not."),V("I like mineral water.")],
-     growth:[C("Cracks knit with new layers along the seam within {days} days."),C("My outer facets widen by about {mm} millimeters each season."),V("My edges seem wider year to year.")],
-     repro:[C("When two of us sing together, a shardling sprouts where our bodies meet."),C("If you keep a splinter moist, a tiny tremor begins by day {days}."),V("Splinters sometimes make small ones.")]
-   }}
+  {
+    id:'1',name:'Aurelian Phototroph',world:'Erythra',look:
+    'I am a tall, stalk-like organism with wide green fronds. I live in warm, shallow pools on the always-sunny side of my tidally locked planet.',
+    replies:{
+      energy:[
+        C("I use sunlight to make sugar for energy. When the sun shines, I stay active."),
+        C("After a few minutes of sunlight, I can make enough energy to grow stronger."),
+        C("When light is bright, I produce food inside myself and use it for energy."),
+        V("I prefer bright places."),
+        V("Light feels pleasant to me, but I am not sure what it does."),
+        V("Dim areas make me sluggish, though I can remain there.")
+      ],
+      growth:[
+        C("I grow bigger over time, adding a new ring each season."),
+        C("If I am cut, the wound closes within a day."),
+        C("Marks made on my stalk move upward as new tissue grows."),
+        V("I think I used to be smaller."),
+        V("I may have changed size since last season."),
+        V("Sometimes I feel different in size but I’m not sure.")
+      ],
+      repro:[
+        C("In warm months I grow bulbs that drop off and begin to move on their own."),
+        C("When I press my fronds with a partner, a bead forms and later begins to move."),
+        C("Bulbs that fall away can develop into others like me."),
+        V("Sometimes little pieces appear near me."),
+        V("Bits sometimes fall off, but I don’t know what happens to them."),
+        V("Sometimes I notice small shapes nearby.")
+      ]
+    }
+  },
+  {
+    id:'2',name:'Ferrivore Lithotroph',world:'Varron',look:
+    'I am a low crawler with hard ridge plates and sensing whiskers. I live in rust-colored caves with mineral water dripping through iron seams.',
+    replies:{
+      energy:[
+        C("I get energy from iron. When I eat iron filings, my body gets warmer within {mins} minutes."),
+        C("I can feed on minerals, and certain drips make my body more active."),
+        C("When I eat ore, I can keep moving for a long time."),
+        V("Rocks taste good."),
+        V("I enjoy licking stones but I don’t know why."),
+        V("I press my mouth to rocks and sometimes feel a change.")
+      ],
+      growth:[
+        C("I repair myself. Cracks in my plates close within {days} days."),
+        C("When I eat ore, I become heavier and larger."),
+        C("New plates grow over scars after a few days."),
+        V("I feel sturdier after meals."),
+        V("After eating, I sometimes feel different."),
+        V("I think my shell changes after time.")
+      ],
+      repro:[
+        C("I press throat fans with a partner; later a pebble-egg opens with a small one inside."),
+        C("A tiny chip of my plate can start a new one if it lands in the right place."),
+        C("When conditions are right, I release an egg that hatches."),
+        V("Sometimes a small pebble follows me."),
+        V("At times, pieces come loose but I don’t track them."),
+        V("Occasionally something small appears nearby.")
+      ]
+    }
+  },
+  {
+    id:'3',name:'Cryo Ammonoform',world:'Thalos',look:
+    'I am a soft, gel-bodied swimmer with thin fins. I live in very cold ammonia seas where my breath makes a purple cloud in the air.',
+    replies:{
+      energy:[
+        C("I get energy by using certain chemicals in the water."),
+        C("When I feed, a warm band appears inside me."),
+        C("If I am given nitrate pads, my gills beat faster."),
+        V("Some chemicals make me feel lively."),
+        V("Certain waters change how I feel, though I am unsure how."),
+        V("Sometimes my body reacts oddly when I drink the sea.")
+      ],
+      growth:[
+        C("I grow thicker with time, and small tears seal by the next dawn."),
+        C("After each flood, a new pale ring forms around me."),
+        C("As seasons pass, my body becomes larger and stronger."),
+        V("Rings show up sometimes."),
+        V("I think I change shape but I don’t notice much."),
+        V("Perhaps I grew compared to before, but I cannot tell.")
+      ],
+      repro:[
+        C("During the thaw I release threads that form beads; after {days} days the beads twitch."),
+        C("Two of us braid whisker codes, and a pouch grows under my mantle."),
+        C("Beads that form from me can develop into others like me."),
+        V("Sometimes beads appear near me."),
+        V("Threads sometimes break off, but I don’t know what happens."),
+        V("Small shapes appear and drift away.")
+      ]
+    }
+  },
+  {
+    id:'4',name:'Desert Strider',world:'Sere',look:
+    'I am a long-legged runner with a pale coat and large ears. I travel across hot dunes by day and cold sands by night in thin air.',
+    replies:{
+      energy:[
+        C("I use stored fat for energy when I run."),
+        C("When I eat sweet pulp, I run faster."),
+        C("Food helps me keep moving for long periods."),
+        V("Food gives me energy."),
+        V("I feel better after eating."),
+        V("When I don’t eat, I feel weak.")
+      ],
+      growth:[
+        C("I grow and heal. My stride got longer this season."),
+        C("A cracked claw grew back in {days} days."),
+        C("Old scars are covered with new skin as I grow."),
+        V("My legs seem longer lately."),
+        V("I may have changed size."),
+        V("I cannot tell if I am larger now.")
+      ],
+      repro:[
+        C("We have young. If the nest is too cool, the kits do not move."),
+        C("I bear two kits after many suns."),
+        C("With a partner, I can produce young that feed and grow."),
+        V("Sometimes I end up with small ones."),
+        V("Small shapes appear near me at times."),
+        V("Occasionally something small follows me.")
+      ]
+    }
+  },
+  {
+    id:'5',name:'Colony Weaver',world:'Pelagia',look:
+    'I am a branching colony made of many small units. I live on warm reef pillars where outer fronds face the sun and inner mouths feed.',
+    replies:{
+      energy:[
+        C("We get energy in two ways: outer fronds use sunlight, and inner mouths eat plankton."),
+        C("When food is low, some units shrink while others grow, then we balance back out."),
+        C("We can capture food particles and share them with all parts."),
+        V("We like sun and current."),
+        V("The water flow feels good to us."),
+        V("We seem to prefer light places.")
+      ],
+      growth:[
+        C("We grow at the edges each week."),
+        C("Cut tips seal quickly."),
+        C("Storms make our skeleton thicker."),
+        V("We get bigger at the edges."),
+        V("Our shape changes slowly."),
+        V("I cannot tell if we are larger now.")
+      ],
+      repro:[
+        C("Each red moon we release tiny swimmers."),
+        C("A small piece can break off and start a new colony."),
+        C("Parts of us separate and grow on their own."),
+        V("Pieces drift away sometimes."),
+        V("Sometimes fragments appear."),
+        V("Bits break off but I don’t follow them.")
+      ]
+    }
+  },
+  {
+    id:'6',name:'Sky Sailor',world:'Aerolyth',look:
+    'I am a floating drifter with a clear gas sac, rim valves, and long tendrils. I ride warm air currents high in a gas-giant atmosphere.',
+    replies:{
+      energy:[
+        C("I gain energy from sunlight and gases."),
+        C("When the sun warms me, I rise without effort."),
+        C("In richer air, I float higher and stay active."),
+        V("Warm winds help me."),
+        V("I like the sunlight."),
+        V("I feel weak in poor air currents.")
+      ],
+      growth:[
+        C("My gas sac wall gets thicker after rich air."),
+        C("Small tears knit within hours."),
+        C("I grow more valves along my rim as I age."),
+        V("My edges look thicker over time."),
+        V("I think I change with the air."),
+        V("I may be bigger than before.")
+      ],
+      repro:[
+        C("During storm season I release dust-like spores."),
+        C("When two of us entwine, pods swell and grow."),
+        C("Spores that drift can become new ones like me."),
+        V("Sometimes dust comes off me."),
+        V("I feel particles leave me at times."),
+        V("I sometimes lose bits in the wind.")
+      ]
+    }
+  },
+  {
+    id:'7',name:'Mire Crawler',world:'Morass',look:
+    'I am a slug-like scavenger with small bristles on my sides. I live in warm, poisonous swamps and often leave a thick paste trail behind me.',
+    replies:{
+      energy:[
+        C("I get energy by eating rotting plants."),
+        C("My body gets warmer while I feed."),
+        C("Bark scrapings make me crawl faster."),
+        V("I like rotting stuff."),
+        V("Rotten smells attract me."),
+        V("I feel better after eating sludge.")
+      ],
+      growth:[
+        C("Each time I molt, I leave a shell behind and grow."),
+        C("Fresh skin covers my scars."),
+        C("If I lose a feeler, it grows back."),
+        V("Old skin comes off sometimes."),
+        V("I feel different after molting."),
+        V("Pieces of me seem to change.")
+      ],
+      repro:[
+        C("I lay slimy strings that open with tiny young."),
+        C("With a partner, I form eggs by dawn."),
+        C("Eggs hatch into small ones after {days} days."),
+        V("Small ones appear in my slime."),
+        V("Slime sometimes has shapes in it."),
+        V("Something emerges from my trails at times.")
+      ]
+    }
+  },
+  {
+    id:'8',name:'Crystal Singer',world:'Umbra',look:
+    'I am a shimmering, faceted being with many inner chambers. I live in cool, shadowed mountain caves and I glow when I hear certain sounds.',
+    replies:{
+      energy:[
+        C("I get energy from minerals in dripping water."),
+        C("After I drink, my glow brightens for {mins} minutes."),
+        C("A copper-tasting drip makes my inner hum stronger."),
+        V("I like mineral water."),
+        V("Water dripping on me feels good."),
+        V("I enjoy the taste of certain stones.")
+      ],
+      growth:[
+        C("Cracks fill with new layers within {days} days."),
+        C("I add thin layers each season, so I get bigger."),
+        C("My outer edges widen by about {mm} millimeters."),
+        V("My edges seem wider year to year."),
+        V("I think I change shape but slowly."),
+        V("I may look different after a season.")
+      ],
+      repro:[
+        C("When two of us sing, a shard grows and later separates."),
+        C("If a splinter is kept moist, it trembles and grows."),
+        C("Small shards that fall away can grow into new ones."),
+        V("Sometimes splinters make small ones."),
+        V("Bits sometimes break off."),
+        V("I sometimes notice small fragments.")
+      ]
+    }
+  }
 ];
 
 /* ===== choose alien (random or ?alien=) ===== */
@@ -141,9 +325,7 @@ const A=chooseAlien();
 /* ===== UI ===== */
 const spec=document.getElementById('spec');
 spec.innerHTML=`<h2>${A.name} — Planet ${A.world}</h2>
-  <div class="meta">
-    ${A.look}
-  </div>`;
+  <div class="meta">${A.look}</div>`;
 const log=document.getElementById('log'),box=document.getElementById('textbox'),btn=document.getElementById('send'),status=document.getElementById('status');
 
 function addMsg(role,text){
@@ -154,79 +336,4 @@ function addMsg(role,text){
 }
 
 /* intro speech */
-addMsg('alien',`Hello. My name is <b>${A.name}</b>, and I come from the planet <b>${A.world}</b>. ${A.look}
-<br><br><b>Your task:</b> decide if I am alive using evidence from my behavior. <b>Ask about how I live, what I do, how I survive, etc.</b> Please do not ask me directly if I am alive.`);
-
-/* ===== routing & limits ===== */
-const ENERGY=['eat','food','hungry','fuel','drink','nutrient','sugar'];
-const GROWTH=['grow','bigger','smaller','size','age','develop','mature','ring','molt','heal','scar'];
-const REPRO=['baby','offspring','egg','spawn','bud','spore','reproduce','hatch','young'];
-
-let validCount=0, clearCount=0, vagueCount=0, locked=false;
-
-function updateStatus(){
-  status.textContent = locked
-    ? "Interview complete: you have 3 evidence responses."
-    : `Valid questions answered: ${validCount}/3`;
-}
-updateStatus();
-
-function routeTopic(text){
-  const s=text.toLowerCase();
-  if(NEVERSAY.some(w=>s.includes(w))) return 'deflect';
-  if(ENERGY.some(k=>s.includes(k))) return 'energy';
-  if(GROWTH.some(k=>s.includes(k))) return 'growth';
-  if(REPRO.some(k=>s.includes(k))) return 'repro';
-  // If unclear, pick one so students still get evidence.
-  return pick(['energy','growth','repro']);
-}
-
-/* hidden rule: exactly 2 clear + 1 vague across the 3 valid answers */
-function chooseClarity(){
-  const remaining=3-validCount;
-  const needClear=2-clearCount, needVague=1-vagueCount;
-  if(remaining===1){
-    if(needClear>0) return 'clear';
-    if(needVague>0) return 'vague';
-  }
-  if(needClear>needVague) return 'clear';
-  if(needVague>needClear) return 'vague';
-  if(clearCount>=2) return 'vague';
-  if(vagueCount>=1) return 'clear';
-  return Math.random()<0.5?'clear':'vague';
-}
-
-function handle(text){
-  if(locked) return;
-  const t=text.trim(); if(!t) return;
-  addMsg('user',t);
-
-  const topic=routeTopic(t);
-  if(topic==='deflect'){
-    addMsg('alien',pick(DEFLECTS));
-    return; // deflection does not count
-  }
-
-  // choose clarity & reply from current alien’s bucket
-  const want=chooseClarity();
-  const bucket=A.replies[topic];
-  const options=bucket.filter(r=>r.clarity===want);
-  const reply=options.length?pick(options):pick(bucket);
-  addMsg('alien',varify(reply.text));
-
-  // count only evidence replies
-  validCount++;
-  if(want==='clear') clearCount++; else vagueCount++;
-  if(validCount>=3){
-    locked=true;
-    box.disabled=true; btn.disabled=true;
-  }
-  updateStatus();
-}
-
-/* handlers */
-btn.onclick=()=>{ handle(box.value); box.value=''; };
-box.addEventListener('keydown',e=>{ if(e.key==='Enter') btn.click(); });
-</script>
-</body>
-</html>
+addMsg('alien',`Hello. My name is <
