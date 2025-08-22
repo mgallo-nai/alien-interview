@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Alien Interview — 8 Species (3Q Limit + High Variety)</title>
+<style>
+  :root{--bg:#0b1020; --panel:#131a33; --text:#eef2ff; --accent:#7cf7d4; --muted:#93a1b3;}
+  *{box-sizing:border-box} body{margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+  background:linear-gradient(180deg,#060a18,#0b1020 30%,#0e1833); color:var(--text)}
+  header{padding:16px 20px;border-bottom:1px solid #1f2748;background:#0a1330; position:sticky;top:0;z-index:2}
+  header h1{margin:0; font-size:1.05rem}
+  #app{max-width:980px; margin:0 auto; padding:16px}
+  .chat{background:var(--panel); border:1px solid #1f2748; border-radius:14px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .status{padding:6px 14px; background:#0b1530; font-size:.82rem; color:#7cf7d4; border-bottom:1px solid #1f2748}
+  .log{height:min(64vh,620px); overflow:auto; padding:18px; scroll-behavior:smooth}
+  .msg{display:flex; gap:12px; margin:10px 0; align-items:flex-start}
+  .msg .bubble{max-width:820px; padding:12px 14px; border-radius:12px; line-height:1.45}
+  .user .bubble{background:#23305f}
+  .alien .bubble{background:#0f2347; border:1px solid #253a7a}
+  .role{font-size:.75rem; color:var(--muted); margin-bottom:4px}
+  .inputbar{display:flex; gap:10px; padding:12px; border-top:1px solid #1f2748; background:#0c1735}
+  input[type="text"]{flex:1; padding:12px 14px; border-radius:10px; border:1px solid #28345f; background:#0f1a3a; color:var(--text)}
+  input::placeholder{color:#96a2c3}
+  button{background:var(--accent); color:#04131a; border:none; padding:12px 16px; border-radius:10px; font-weight:700; cursor:pointer}
+  button:disabled{background:#374151; color:#888; cursor:not-allowed}
+  .hint{font-size:.82rem; color:#9fb0c9; padding:8px 14px 12px; border-top:1px solid #1f2748; background:#0b1633}
+  .footer{font-size:.75rem; color:#94a3b8; text-align:center; margin:16px 0 8px}
+  .spec{padding:10px 14px; border-bottom:1px solid #1f2748; background:#0b1530}
+  .spec h2{margin:0; font-size:1rem}
+  .story{font-size:.9rem; color:#b3c4e0; margin-top:4px}
+  .tag{display:inline-block; margin-top:6px; font-size:.72rem; color:#7cf7d4}
+  .done{color:#f87171; font-weight:600}
+</style>
+</head>
+<body>
+<header><h1>👽 Alien Interview Console</h1></header>
+
+<div id="app">
+  <div class="chat">
+    <div id="spec" class="spec"></div>
+    <div id="status" class="status"></div>
+    <div id="log" class="log" aria-live="polite"></div>
+    <div class="hint">
+      Ask how the visitor “goes on.” It avoids biology vocabulary and answers with behaviors.<br/>
+      Teacher: add <code>?teacher=1</code> for concept & strength hints. Pick a species with <code>?alien=1</code>…<code>8</code> or part of a name.
+    </div>
+    <div class="inputbar">
+      <input id="textbox" type="text" placeholder="Type your question…" />
+      <button id="send">Send</button>
+    </div>
+  </div>
+  <div class="footer">You may ask <b>3 valid evidence</b> questions. Deflections/generic replies don’t count. At least one strong and one weak answer are guaranteed.</div>
+</div>
+
+<script>
+/* ========== helpers ========== */
+const q=new URLSearchParams(location.search);
+const TEACHER=q.get('teacher')==='1';
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const rand=(min,max)=>Math.floor(Math.random()*(max-min+1))+min;
+const choice=(...xs)=>xs[Math.floor(Math.random()*xs.length)];
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+/* tiny templater for variety: {mins}, {pct}, {deg}, {mm}, {days} */
+function varify(str){
+  return str
+    .replace(/\{mins\}/g, ()=>rand(2,8))
+    .replace(/\{pct\}/g, ()=>rand(15,35))
+    .replace(/\{deg\}/g, ()=>rand(1,3))
+    .replace(/\{mm\}/g, ()=>rand(2,12))
+    .replace(/\{days\}/g, ()=>rand(3,7))
+    .replace(/\{beats\}/g, ()=>rand(2,5))
+    .replace(/\{grams\}/g, ()=>rand(2,9));
+}
+
+/* ========== guard list & intents ========== */
+const NEVERSAY=[
+  'characteristics of life','metabolism','homeostasis','reproduction','stimuli','evolution','cellular organization',
+  'alive','are you alive','is it alive','are you living'
+];
+const DEFLECT=[
+  "Labels are your tools. I can give you happenings, not names.",
+  "Ask of my needs, changes, young, or balances—behaviors decide your claim.",
+  "Names are cages; evidence is air. Ask what I *do*."
+];
+const GENERIC=[
+  "Aim your inquiry: food, growth, young, reactions, exchange, or balance.",
+  "Describe a test; I’ll try it and report what I notice.",
+  "Ask about my habits, limits, or what changes me."
+];
+
+const INTENT_TERMS={
+  energy:['eat','food','hungry','fuel','drink','nutrient','sugar','photosynthesis'],
+  growth:['grow','bigger','smaller','size','age','develop','mature','ring','molt'],
+  repro:['baby','offspring','egg','spawn','bud','spore','reproduce','hatch'],
+  cells:['cell','cells','microscope','structure','tissue','organ','membrane'],
+  homeo:['temperature','hot','cold','warm','freeze','salt','pH','balance','stable','sweat','shiver','pressure'],
+  stimuli:['touch','light','sound','see','hear','smell','react','stimulus','poke','noise','shadow','vibrate'],
+  exchange:['breathe','oxygen','carbon','gas','waste','poop','exhale','urine','vent'],
+  evo:['evolve','adapt','generation','mutation','ancestor','selection','changed'],
+  red:['crystal','fire','virus','robot','rock','machine','smoke']
+};
+const TAGS={
+  energy:'energy use',
+  growth:'growth & development',
+  repro:'reproduction',
+  cells:'cellular organization',
+  homeo:'homeostasis',
+  stimuli:'response to stimuli',
+  exchange:'matter exchange',
+  evo:'evolution (population)',
+  red:'contrast with nonliving'
+};
+
+/* wrappers for strong/weak */
+const S=t=>({text:t,strength:'strong'});
+const W=t=>({text:t,strength:'weak'});
+
+/* ========== 8 species with MANY templates (≥3 strong & ≥3 weak each bucket) ========== */
+const ALIENS=[
+  {id:'1',name:'Aurelian Phototroph',world:'tidally locked garden moon',
+   story:"On my bright side the sun never sets. I drift under unending blue, fronds whispering sugars into sacks.",
+   replies:{
+     energy:[
+       S("I angle my fronds until the veins hum; within {mins} minutes sugars pool in my gel‑sacs."),
+       S("Shade me and my pulse slackens; expose me to blue at {pct}% sky and it steadies again."),
+       S("After {mins} minutes of bright, a strip dipped in my sap darkens—sweetness climbs."),
+       W("Light feels nice; I like being in it."),
+       W("Warm glow makes me feel less empty."),
+       W("I prefer bright places over dim ones.")
+     ],
+     growth:[
+       S("Scratch a notch on my stalk; by next week it rides upward as new tissue swells beneath."),
+       S("Each orbit adds a cartilage ring; diameter grows about {mm} mm."),
+       S("A cut edge seals clear in hours and is opaque by dawn."),
+       W("I think I used to be smaller."),
+       W("Edges seem fuller with time."),
+       W("Marks I make look different later.")
+     ],
+     repro:[
+       S("Warm season grows bulbs along my ribs; on day {days} one pinches off and twitches alone."),
+       S("Two of us press coil‑fronds; patterns swap, and a bead swells overnight."),
+       S("A detached bulb placed in mist starts pulsing in {mins} minutes."),
+       W("Sometimes little pieces appear near me."),
+       W("I’ve seen beads form when friends visit."),
+       W("Small lumps show up in warm months.")
+     ],
+     cells:[
+       S("Under a lens: hex chambers with green granules stacking sugars; valves pulse sap."),
+       S("Thin slice shows membranes around rooms, each with enzyme dust."),
+       S("Stain reveals pores opening and closing in patches."),
+       W("My skin looks quilted."),
+       W("Up close I’m patchy."),
+       W("I’m made of lots of little bits.")
+     ],
+     homeo:[
+       S("Cold gusts make me shutter pores and reroute warm flow until my tremor stops."),
+       S("Salt spray stings; edge cells squeeze out water and the burn eases."),
+       S("When shade chills me, I furl fronds and shift flow to the core."),
+       W("Cold makes me uncomfortable."),
+       W("Too much salt feels bad."),
+       W("I try to keep comfy inside.")
+     ],
+     stimuli:[
+       S("Blue light opens my fronds; sudden white curls them shut within {beats} beats."),
+       S("Tap the bowl and my cilia lean toward the rhythm."),
+       S("Gentle airflow tilts my fronds toward it."),
+       W("I notice light changes."),
+       W("Touches get my attention."),
+       W("Noises make me curious.")
+     ],
+     exchange:[
+       S("I pull bright gas and exhale a dusk‑smelling breath after sugar stacking."),
+       S("Nightfall reverses my pore flow; the chamber air grows slightly sour."),
+       S("Bubbles cling to my pores under strong light."),
+       W("Sometimes the air around me changes."),
+       W("I think I take in something and let out something."),
+       W("There’s a smell after I bask.")
+     ],
+     evo:[
+       S("Kin without dawn‑sensing pores withered; lines with them spread."),
+       S("Windward stalks thickened across generations; leeward kin stayed slender."),
+       S("Fronds tuned to blue thrived where red was scarce."),
+       W("We’ve changed since long ago."),
+       W("Old stories say we used to be different."),
+       W("My elders weren’t quite like me.")
+     ],
+     red:[
+       S("Crystals copy shapes when fed broth, but never steady an inner weather like I do."),
+       S("Fires eat and glow, yet lose themselves when fuel ends."),
+       S("Smoke drifts and divides, but it meters nothing within."),
+       W("Crystals can look lively, but they don’t keep a balance."),
+       W("Fire acts hungry but forgets itself."),
+       W("Smoke spreads, not steadies.")
+     ]
+   }},
+  {id:'2',name:'Ferrivore Lithotroph',world:'iron‑rich cave planet',
+   story:"Rust is pantry and map. I taste tunnels with my whiskers; ore fizz warms my middle.",
+   replies:{
+     energy:[
+       S("Iron filings fizz warm as I precipitate rust; core rises ~{deg}° by minute {mins}."),
+       S("Drip me thiosulfate and my feeding fan spins faster within {mins} minutes."),
+       S("After {grams} grams of filings, my pace steadies; with sand, it sags."),
+       W("Rocks taste good."),
+       W("Metal makes me feel ready."),
+       W("I prefer seam water to plain.")
+     ],
+     growth:[
+       S("Fractures knit with micro‑plates in {days} days; mass increases by {grams} grams."),
+       S("Fresh ridges layer over scars after a week."),
+       S("I thicken plates when ore is plentiful."),
+       W("I feel sturdier after meals."),
+       W("My shell seems thicker lately."),
+       W("Cracks look smaller later.")
+     ],
+     repro:[
+       S("We press throat fans to trade coil‑codes; pebble‑eggs cure stiff, then crack."),
+       S("A plate chip in the right seep buds a runt in {days} days."),
+       S("Our eggs harden near warm vents before opening."),
+       W("Sometimes a small pebble follows me."),
+       W("Bits fall off and sometimes start things."),
+       W("Little stones appear where we rest.")
+     ],
+     cells:[
+       S("Thin sections show rooms with iron grains and enzyme threads."),
+       S("Stain reveals alternating acid and buffer channels."),
+       S("Membrane valves pulse rust‑colored slurry."),
+       W("Inside looks grainy."),
+       W("Lots of tiny pockets in there."),
+       W("It’s not just solid rock.")
+     ],
+     homeo:[
+       S("Acid surge? I open base pores to flood in buffer until measures calm."),
+       S("Cold seep slows me; I throttle heat‑making reactions to steady the core."),
+       S("Salt spikes make me purge brine through side vents."),
+       W("Too much acid feels bad; I deal with it."),
+       W("Cold makes me sluggish."),
+       W("I try to keep balance inside.")
+     ],
+     stimuli:[
+       S("Hammer blows map the tunnel in vibrations; I turn before the echo fades."),
+       S("Whisker touch folds the feeding fan instantly."),
+       S("Mineral scent pulls me uphill."),
+       W("I can tell when rocks shake."),
+       W("Touch makes me react."),
+       W("I notice certain smells.")
+     ],
+     exchange:[
+       S("I vent metallic breath that tarnishes a mirror."),
+       S("Waste slurry piles in neat cones behind me."),
+       S("Gas bubbles rise when I chew ore."),
+       W("I leave gritty stuff behind."),
+       W("Sometimes my breath smells sharp."),
+       W("I give off bits when I eat.")
+     ],
+     evo:[
+       S("Plate thickness rose across generations in toxin vents; thin‑plated lines dwindled."),
+       S("Fan shapes that grabbed ore better stayed common."),
+       S("Enzymes that ignore low oxygen spread in deep tunnels."),
+       W("My family used to be different."),
+       W("Old ones weren’t built like me."),
+       W("We changed as tunnels changed.")
+     ],
+     red:[
+       S("A robot can grind ore but senses no sourness when acids surge."),
+       S("Crystals grow but don’t throttle reactions when cold hits."),
+       S("Fire eats fuel but cannot buffer itself."),
+       W("Machines chew rocks but don’t feel it."),
+       W("Crystals copy shapes, not conditions."),
+       W("Fire doesn’t keep a steady inside.")
+     ]
+   }},
+  {id:'3',name:'Cryo Ammonoform',world:'ammonia seas of an icy moon',
+   story:"Purple breath, needle currents. My gels move even when the sea would freeze your bones.",
+   replies:{
+     energy:[
+       S("I crack nitrite; a ribbon of warmth shows in my core while feeding."),
+       S("Given nitrate pads, my gill beats quicken within {mins} minutes."),
+       S("Starved, the beats slow; feed me and they recover."),
+       W("Certain chemicals make me lively."),
+       W("Rich currents perk me up."),
+       W("I like some flows better than others.")
+     ],
+     growth:[
+       S("Sheath thickens in winter; circumference climbs {mm} mm per orbit."),
+       S("New rings form paler than old after each flood."),
+       S("Tears self‑seal by dawn."),
+       W("Rings appear sometimes."),
+       W("Edges seem thicker lately."),
+       W("I feel tougher after thaws.")
+     ],
+     repro:[
+       S("In thaw I exhale threads that knot into beads; they twitch after {days} days."),
+       S("Two braid whisker‑codes; I carry a pale pouch under my mantle."),
+       S("Beads set on cold glass begin faint pulsing."),
+       W("Sometimes beads show up near me."),
+       W("Small knots appear in warm times."),
+       W("I’ve seen pouches grow after meetings.")
+     ],
+     cells:[
+       S("Cold lens shows rooms edged with waxy walls; tiny motors ferry ions."),
+       S("Membranes thicken when outside thins."),
+       S("Channels pulse in waves along the sheath."),
+       W("I’m full of rooms."),
+       W("I’m patterned inside."),
+       W("There are little chambers in me.")
+     ],
+     homeo:[
+       S("When brine thins, I pump water out to hold my inner mix constant."),
+       S("Cold snap triggers a heat‑making cycle until gels stop stiffening."),
+       S("Salt spikes make me sip brine until the sting fades."),
+       W("Thin water bothers me; I try to fix it."),
+       W("Cold makes me clamp down."),
+       W("I try to keep my mix okay.")
+     ],
+     stimuli:[
+       S("Ultraviolet stings; I fold fins and dive within moments."),
+       S("Ammonia scent gradients pull me upstream."),
+       S("Sharp vibrations send me sidewise."),
+       W("Bright light makes me uneasy."),
+       W("I follow some smells."),
+       W("Noise bothers me a bit.")
+     ],
+     exchange:[
+       S("Gills trade sharp gases; my breath clouds purple briefly."),
+       S("Waste settles as fine frost that scavengers peck."),
+       S("At night I vent a sour trace from side pores."),
+       W("Gases come and go around me."),
+       W("Sometimes frost trails behind me."),
+       W("Air near me smells different.")
+     ],
+     evo:[
+       S("Waxy‑walled lines survived thaws; brittle lines cracked and vanished."),
+       S("Eyes that sensed ultraviolet avoided burn‑floes."),
+       S("Mix‑keeping gels stayed common after cold ages."),
+       W("Old ones weren’t like me."),
+       W("We changed across ages."),
+       W("Stories say our walls used to fail.")
+     ],
+     red:[
+       S("Ice copies angles but never steers its inner mix."),
+       S("Frost spreads but does not seal itself."),
+       S("Crystals fracture and forget."),
+       W("Ice looks active but doesn’t balance."),
+       W("Frost grows, not regulates."),
+       W("Crystals don’t keep inner weather.")
+     ]
+   }},
+  {id:'4',name:'Desert Strider',world:'thin‑air dune world',
+   story:"Day scorches, night bites; I keep my core steady and cross the singing sands.",
+   replies:{
+     energy:[
+       S("Fat nodules melt to heat during a run; my pace stays steady for hours."),
+       S("Sugared pulp lifts my pace; plain sand does not."),
+       S("After hunting, temperature holds within ±{deg}° for {mins} minutes."),
+       W("Food gives me pep."),
+       W("I feel better after eating."),
+       W("Running is easier when I’ve fed.")
+     ],
+     growth:[
+       S("Stride length increased a tenth this season; cracked claw regrew in {days} days."),
+       S("Bone cross‑sections show fresh canals in juveniles."),
+       S("Old scar tissue is overgrown by paler keratin."),
+       W("My legs seem longer lately."),
+       W("Marks look different over time."),
+       W("Claws come back if I break them.")
+     ],
+     repro:[
+       S("Cold‑moon pairing yields two kits; below nest heat threshold the kits fail to stir."),
+       S("My milk thins in heat; we shade the nest to keep them drinking."),
+       S("We time pairing after dust storms to protect the young."),
+       W("I sometimes end up with small ones."),
+       W("We keep nests warm."),
+       W("Pairs meet at cold moon.")
+     ],
+     cells:[
+       S("Blood smear shows disk cells ferrying gases."),
+       S("Muscle fibers show striations under stain."),
+       S("Bone sections reveal canals for flow."),
+       W("My blood looks busy."),
+       W("Fibers run in lines."),
+       W("My bones aren’t solid all through.")
+     ],
+     homeo:[
+       S("Midday I pant and open heat webs; nights I shiver and burn reserves to keep core steady."),
+       S("Salt loss dries my tongue; brine restores me."),
+       S("I widen vessels in shade and clamp them in sun."),
+       W("I cool off and warm up as needed."),
+       W("Salt makes me thirsty."),
+       W("Heat and cold change my habits.")
+     ],
+     stimuli:[
+       S("Pupils clamp in glare and bloom in dusk."),
+       S("Ear pinnae pivot to snaps behind me."),
+       S("Touch raises hair in a ripple."),
+       W("I notice sounds and light."),
+       W("I turn when things tap me."),
+       W("Bright light bothers me.")
+     ],
+     exchange:[
+       S("I draw thin air deep and vent moist warmth; droppings dry fast."),
+       S("Water leaves my tongue as vapor after sprints."),
+       S("I shed salts along my flanks in noon sun."),
+       W("I breathe and leave stuff behind."),
+       W("My breath fogs sometimes."),
+       W("I sweat a little in heat.")
+     ],
+     evo:[
+       S("Long‑leg lines crossed scalding dunes and spread; short‑leg lines dwindled."),
+       S("Pale coats bled less heat under noon suns."),
+       S("Wide feet stayed where sands were soft."),
+       W("Long legs run in my family."),
+       W("We got paler over time."),
+       W("Old kin sank in sand.")
+     ],
+     red:[
+       S("A fire runs hot and breathes, yet forgets itself when fuel ends."),
+       S("Wind stacks dunes but never keeps a core warm."),
+       S("Mirages look alive but are light alone."),
+       W("Fire looks lively but cannot balance."),
+       W("Wind shapes dunes but isn’t alive."),
+       W("Heat shimmers pretend movement.")
+     ]
+   }},
+  {id:'5',name:'Colony Weaver',world:'warm ocean reef pillars',
+   story:"We are many rooms stitched into one, sharing broth, warnings, and work as waves test our walls.",
+   replies:{
+     energy:[
+       S("Outer fronds sip light; inner mouths catch plankton and share through threads."),
+       S("Starved modules shrink while feeders swell, then we rebalance."),
+       S("Daylight raises sugar in edge rooms; night nets plankton."),
+       W("Some of us eat; some don’t."),
+       W("We like sun and current."),
+       W("Food seems to move around inside us.")
+     ],
+     growth:[
+       S("New rooms bud at the rim each week; clipped branches seal within minutes."),
+       S("Skeleton thickens in storms; calm weeks add frilly growth."),
+       S("Broken tips regrow by dawn."),
+       W("We get bigger at the edges."),
+       W("Cracks look smaller later."),
+       W("Old parts feel thicker.")
+     ],
+     repro:[
+       S("Each red moon we release swimmers; a few land and seed new pillars."),
+       S("A crawling chip detaches and anchors elsewhere."),
+       S("Storms cue a pulse—soon we cast tiny dots."),
+       W("Pieces drift away and sometimes start over."),
+       W("We drop bits in rough water."),
+       W("Sometimes specks float off us.")
+     ],
+     cells:[
+       S("Units show valve cells, sting cells, couriers under stain."),
+       S("Microscopy shows different membranes by job."),
+       S("Pores open only near prey touch."),
+       W("Different bits do different things."),
+       W("We’re made of little rooms."),
+       W("Edges have different textures.")
+     ],
+     homeo:[
+       S("Freshwater rush? We squeeze salts from storage rooms to steady stings."),
+       S("Heat spikes open canals to flush warm broth."),
+       S("Acidic currents make us release base packets."),
+       W("Fresh water feels wrong; we adjust."),
+       W("When it’s hot, we open more."),
+       W("We try to keep things even.")
+     ],
+     stimuli:[
+       S("A shadow retracts lashes locally; constant dim and they extend again."),
+       S("Touch one tip and only neighbors sting."),
+       S("Vibration patterns cue feeding pores."),
+       W("We notice shade."),
+       W("Touches change our edges."),
+       W("We react to movement.")
+     ],
+     exchange:[
+       S("Bubbles rise by day; at night gases swing the other way."),
+       S("Waste sand drifts from down‑current vents."),
+       S("We vent sour packets after feasting."),
+       W("Sometimes bubbles happen."),
+       W("We let bits out."),
+       W("Stuff leaves from our low vents.")
+     ],
+     evo:[
+       S("Job‑divided colonies outlasted storms; single‑job ones broke."),
+       S("Stiffer skeleton lines stayed higher in waves."),
+       S("Fast‑sealing pores spread after bleaching years."),
+       W("We’re arranged more cleverly now."),
+       W("Old pillars fell apart."),
+       W("Our bones feel tougher than elders’.")
+     ],
+     red:[
+       S("A rock is a room forever the same; we reassign rooms when the sea changes."),
+       S("Sand piles copy shapes, not work."),
+       S("Foam looks busy, yet forgets itself."),
+       W("Rocks don’t reshuffle jobs."),
+       W("Sand moves but doesn’t coordinate."),
+       W("Foam moves, not maintains.")
+     ]
+   }},
+  {id:'6',name:'Sky Sailor',world:'gas‑giant upper atmosphere',
+   story:"Valves and songs keep me aloft among shears. Storms tear us open and scatter glittering heirs.",
+   replies:{
+     energy:[
+       S("Sun warms my sail; gut microbes crack trace gases—buoyancy and speed increase."),
+       S("In richer currents I rise {mm} mm in {mins} minutes without paddling."),
+       S("Thin gas diets slow me until I find a warm eddy."),
+       W("Warm winds help me."),
+       W("I like rich currents."),
+       W("I slow in poor air.")
+     ],
+     growth:[
+       S("Gas sac thickens after rich currents; mass and volume both climb."),
+       S("Small tears knit within hours, leaving silver seams."),
+       S("Valve counts along my rim increase with age."),
+       W("I feel fuller after good weather."),
+       W("Holes seem smaller later."),
+       W("Edges look thicker over time.")
+     ],
+     repro:[
+       S("Storm season I release dust‑spores that sleep until a warm eddy wakes them."),
+       S("When two entwine tendrils, pods swell heavy by day {days}."),
+       S("Spores germinate only above a certain warmth."),
+       W("Sometimes dust comes off me."),
+       W("Pods get heavy sometimes."),
+       W("We tangle and later there are specks.")
+     ],
+     cells:[
+       S("Layered membranes around gas vesicles; pump and sensor cells at the rim."),
+       S("Sealant cells cluster near tear‑prone edges."),
+       S("Microscopy shows valve gates opening in waves."),
+       W("I have layers."),
+       W("There are tiny pockets inside."),
+       W("Edges feel different to the touch.")
+     ],
+     homeo:[
+       S("Pressure drops? I sip gas to hold shape; squeeze‑zones bleed a little to stay constant."),
+       S("Heat spikes make me shade pigments and vent; chills make me flutter to stir warm pockets."),
+       S("Salt‑dust clogs valves; I pulse them clear to keep even lift."),
+       W("I puff up or let gas out."),
+       W("I vent when hot."),
+       W("Cold makes me flap more.")
+     ],
+     stimuli:[
+       S("Blue flashes trigger a dive; gentle infrared draws me upward."),
+       S("Touch coils my tendrils; a puff releases, then I relax."),
+       S("Shear‑whistles make me bank away."),
+       W("I follow nice light; avoid harsh light."),
+       W("Touch makes me pull back."),
+       W("Certain sounds turn me.")
+     ],
+     exchange:[
+       S("Valves trade thin gases; breath smells sweet‑metal."),
+       S("Spent salts drift from my pores as glitter that cleaners follow."),
+       S("I vent heavier gas when descending."),
+       W("Gases move through me."),
+       W("I leave glitter sometimes."),
+       W("I blow air in and out.")
+     ],
+     evo:[
+       S("Sturdier sails crossed wind shears that shredded others; those lines dominate aloft."),
+       S("Dormant spores that woke only in safe eddies left more heirs."),
+       S("Valve patterns that sealed faster spread after storm years."),
+       W("We got tougher over time."),
+       W("Careful spores did better."),
+       W("Old sails tore more often.")
+     ],
+     red:[
+       S("Smoke rides winds and divides, but never meters its inner push."),
+       S("Clouds form and vanish, not self‑kept."),
+       S("Dust swirls without valves."),
+       W("Smoke spreads but doesn’t regulate."),
+       W("Clouds change, not maintain."),
+       W("Dust is moved, not moving itself.")
+     ]
+   }},
+  {id:'7',name:'Mire Crawler',world:'toxic swamp planet',
+   story:"Sludge is pantry and armor. My enzymes sing where others choke.",
+   replies:{
+     energy:[
+       S("Rotting muck ferments warm in my gut; heat rises while I feed."),
+       S("Bark scrapings lift my crawl speed within {mins} minutes."),
+       S("Metal salts stall me; sugar slurry restores pace."),
+       W("I like rotting stuff."),
+       W("Some scraps help me move."),
+       W("I slow when food is bad.")
+     ],
+     growth:[
+       S("Each molt leaves a husk; scars fade as new flesh grows."),
+       S("Girth increases {mm} mm after a glut week."),
+       S("Lost feelers regrow by day {days}."),
+       W("Old skin comes off sometimes."),
+       W("Scars look softer later."),
+       W("I feel heavier after feasts.")
+     ],
+     repro:[
+       S("I lay slime strings; hatchlings nibble through after {days} days."),
+       S("Neck‑frill twists with a partner—eggs appear by dawn."),
+       S("Warm muck dens yield more wrigglers."),
+       W("Small ones appear in my slime."),
+       W("Sometimes there are eggs."),
+       W("We twist frills and later see dots.")
+     ],
+     cells:[
+       S("Skin smear shows detox sacs and enzyme beads under a lens."),
+       S("Gut lining has valve cells that gate poisons."),
+       S("Muscle fibers band under stain."),
+       W("My skin looks bubbly."),
+       W("There are tiny beads inside."),
+       W("I’m made of little rooms.")
+     ],
+     homeo:[
+       S("Toxin spikes? I upshift enzymes until inner measures return to baseline."),
+       S("Heat makes me spread slime to cool; chill makes me shiver and clump."),
+       S("Salt flushes through side pores when brine rises."),
+       W("Poison hurts less after a while."),
+       W("I slime more when hot."),
+       W("Cold bunches me up.")
+     ],
+     stimuli:[
+       S("Touch my flank and I twitch away immediately."),
+       S("Rot scent draws me; sharp smoke sends me under."),
+       S("Bright flashes freeze me; darkness loosens me."),
+       W("I don’t like being touched."),
+       W("Stinks attract me."),
+       W("Louds make me pause.")
+     ],
+     exchange:[
+       S("I breathe swamp gases; thick paste waste oozes behind."),
+       S("After a feast I vent sour bubbles for {mins} minutes."),
+       S("Pores leak brine when the pool is harsh."),
+       W("I leave trails."),
+       W("Bubbles follow sometimes."),
+       W("Stuff seeps out of me.")
+     ],
+     evo:[
+       S("Lines lacking detox enzymes perished; enzyme‑rich lines persist."),
+       S("Thicker slime coats spread in hotter marshes."),
+       S("Wrigglers that smelled rot better found food and thrived."),
+       W("We’re better with poison now."),
+       W("Old kin couldn’t stand the stink."),
+       W("Our coats got thicker over time.")
+     ],
+     red:[
+       S("Swamp bubbles burst but never regulate themselves."),
+       S("Mud moves when pushed, not by inner rules."),
+       S("Foam writhes yet forgets."),
+       W("Bubbles look active, not balanced."),
+       W("Mud is shifted, not self‑shifting."),
+       W("Foam is busy, not alive.")
+     ]
+   }},
+  {id:'8',name:'Crystal Singer',world:'shadowed mountain caverns',
+   story:"I drink mineral drips and answer echoes with glow. My body is rooms, not stone.",
+   replies:{
+     energy:[
+       S("Mineral drips fizz inside me and I glow brighter for {mins} minutes."),
+       S("A coppery trickle boosts my hum; plain water does not."),
+       S("After {mins} minutes of drip, a glow strip reads higher."),
+       W("I like mineral water."),
+       W("Some drips feel energizing."),
+       W("Plain water is boring.")
+     ],
+     growth:[
+       S("Cracks knit with new layers along the seam within {days} days."),
+       S("Facets widen by about {mm} mm each season."),
+       S("Fresh growth is paler than old."),
+       W("My edges seem wider year to year."),
+       W("Cracks look softer later."),
+       W("I feel larger after rains.")
+     ],
+     repro:[
+       S("In duets we trade songs and a shardling sprouts at the join."),
+       S("Moist cloth on a splinter wakes a tiny tremor by day {days}."),
+       S("Paired notes coax a nub to swell."),
+       W("Splinters sometimes make small ones."),
+       W("Singing together seems to help."),
+       W("Little nubs show up after music.")
+     ],
+     cells:[
+       S("Under scope: cellular lattice; each chamber hums with enzymes."),
+       S("Membrane pockets pinch and fuse in waves."),
+       S("Pigment rooms pulse near the edge."),
+       W("I’m patterned inside."),
+       W("Lots of small rooms."),
+       W("I’m not just one piece.")
+     ],
+     homeo:[
+       S("Heat spikes make me vent shimmer gas; chills make me hum to warm my core."),
+       S("Dry air cracks me; I weep moisture to seal it."),
+       S("Salt in drips makes me shunt it to side pockets."),
+       W("I glow more or less with temperature."),
+       W("Dry makes me leaky."),
+       W("I try to feel just right inside.")
+     ],
+     stimuli:[
+       S("Sound waves at certain notes trigger glow; touch sets off a returning tremor."),
+       S("Low drumbeats dim me; high singing brightens me."),
+       S("Sudden light makes my edge pigments clamp."),
+       W("Noise makes me feel funny."),
+       W("Touch gets a reply from me."),
+       W("Light changes my mood.")
+     ],
+     exchange:[
+       S("I sip drips, exhale faint gas; excess grit falls as powder."),
+       S("Glow goes up after drip in, gas out follows."),
+       S("I vent a sweet‑metal breath after singing."),
+       W("Water goes in; dust comes out."),
+       W("Sometimes there’s a smell."),
+       W("I leave powder behind.")
+     ],
+     evo:[
+       S("Harmonic lines that matched caves survived; silent lines cracked apart."),
+       S("Those with thicker skins kept singing through drought years."),
+       S("Edge sensors tuned to echoes spread."),
+       W("Our songs changed across ages."),
+       W("Old ones shattered more."),
+       W("We learned notes the caves keep.")
+     ],
+     red:[
+       S("A crystal copies shape but never hums with inner change."),
+       S("Echoes bounce, they don’t adjust themselves."),
+       S("Frost gleams, not lives."),
+       W("Crystals can grow but don’t regulate."),
+       W("Echoes move without selves."),
+       W("Frost is pretty, not alive.")
+     ]
+   }}
+];
+
+/* ========== choose alien (random or ?alien=) ========== */
+function chooseAlien(){
+  const wanted=(q.get('alien')||'').toLowerCase().trim();
+  if(!wanted) return pick(ALIENS);
+  return ALIENS.find(a=>a.id===wanted||a.name.toLowerCase().includes(wanted))||pick(ALIENS);
+}
+const A=chooseAlien();
+document.getElementById('spec').innerHTML=
+  `<h2>${A.name} — <span style="color:#a7b2d9;font-weight:500">${A.world}</span></h2>
+   <div class="story">${A.story}</div>`;
+
+/* ========== chat + 3‑valid‑Q limit with strong/weak guarantee ========== */
+const log=document.getElementById('log'),box=document.getElementById('textbox'),btn=document.getElementById('send'),status=document.getElementById('status');
+
+let validCount=0, hasStrong=false, hasWeak=false, locked=false;
+
+function updateStatus(){
+  if(locked){ status.innerHTML=`<span class="done">🚫 You’ve asked 3 valid questions. Interview complete.</span>`; }
+  else{ status.textContent=`Valid questions asked: ${validCount}/3`; }
+}
+updateStatus();
+
+function addMsg(role,text,concept,strength){
+  const row=document.createElement('div'); row.className=`msg ${role}`;
+  const who=role==='alien'?'Visitor':'You';
+  const tag = TEACHER && concept ? `<div class="tag">↳ implied: ${concept}${strength?` • ${strength}`:''}</div>` : '';
+  row.innerHTML=`<div class="bubble"><div class="role">${who}</div><div class="text">${text}</div>${tag}</div>`;
+  log.appendChild(row); log.scrollTop=log.scrollHeight;
+}
+
+function routeIntent(t){
+  const s=t.toLowerCase().trim();
+  if(!s) return {t:'empty'};
+  if(NEVERSAY.some(w=>s.includes(w))) return {t:'deflect'};
+  for(const [k,terms] of Object.entries(INTENT_TERMS)){ if(terms.some(x=>s.includes(x))) return {t:'key',k}; }
+  // light heuristics
+  if(/(eat|food|hungry|fuel|sugar)/.test(s)) return {t:'key',k:'energy'};
+  if(/(cold|hot|warm|freeze|temperature|pressure|salt)/.test(s)) return {t:'key',k:'homeo'};
+  if(/(grow|ring|molt|bigger|smaller|age|develop)/.test(s)) return {t:'key',k:'growth'};
+  return {t:'generic'};
+}
+
+/* Guarantee: across first 3 evidence replies (not counting deflect/generic), include ≥1 strong and ≥1 weak */
+function chooseStrengthForTurn(){
+  const remaining = 3 - validCount; // includes this turn
+  if (remaining === 1){           // last valid slot must satisfy missing
+    if (!hasStrong) return 'strong';
+    if (!hasWeak)   return 'weak';
+  }
+  if (validCount === 1){          // push diversity on 2nd valid
+    if (hasStrong && !hasWeak) return 'weak';
+    if (hasWeak && !hasStrong) return 'strong';
+  }
+  return Math.random() < 0.5 ? 'strong' : 'weak';
+}
+function pickByStrength(bucket,want){
+  const pool = bucket.filter(x=>x.strength===want);
+  return pool.length ? pick(pool) : pick(bucket);
+}
+
+async function alienReply(text){
+  if(locked) return;
+  const it=routeIntent(text);
+  await delay(220+Math.random()*420);
+
+  if(it.t==='empty'){ return; }
+  if(it.t==='deflect'){ addMsg('alien', pick(DEFLECT)); return; }
+  if(it.t==='generic'){ addMsg('alien', varify(pick(GENERIC))); return; }
+
+  const bucket=A.replies[it.k]||[];
+  if(!bucket.length){ addMsg('alien', varify(pick(GENERIC))); return; }
+
+  // choose strong/weak with guarantee for first 3 valid evidence replies only
+  let chosen;
+  if (validCount < 3){
+    const want = chooseStrengthForTurn();
+    chosen = pickByStrength(bucket, want);
+  } else {
+    chosen = pick(bucket);
+  }
+
+  // Apply light randomization
+  const outText = varify(chosen.text);
+  addMsg('alien', outText, TAGS[it.k], chosen.strength);
+
+  // Count only evidence replies
+  if (validCount < 3){
+    if (chosen.strength==='strong') hasStrong = true;
+    if (chosen.strength==='weak')   hasWeak   = true;
+    validCount++;
+    updateStatus();
+    if (validCount >= 3){
+      locked = true; box.disabled = true; btn.disabled = true; updateStatus();
+    }
+  }
+}
+
+/* greet + handlers */
+addMsg('alien',"Greetings, ground‑learners. Ask about my doings—needs, changes, young, reactions, exchanges, balances—not your labels.");
+btn.onclick=()=>{ if(locked) return; const t=box.value.trim(); if(!t) return; addMsg('user',t); box.value=''; alienReply(t); };
+box.addEventListener('keydown',e=>{ if(e.key==='Enter') btn.click(); });
+</script>
+</body>
+</html>
