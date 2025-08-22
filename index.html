@@ -67,10 +67,12 @@ const DEFLECTS=[
   "Please do not ask if I am alive. Ask about how I live, what I do, how I survive, etc.",
   "Labels are not evidence. Ask about my needs, how I change, whether I have young, how I respond, and how I keep going."
 ];
+
+/* ✨ Updated per your request: generic clarification only */
 const CLARIFY=[
-  "Please be more specific—ask about how I get food or fuel, how I grow or heal, or whether I have young; or ask how I react to light/touch/sound, or how I keep my inside steady.",
-  "I did not understand. Try asking about eating/making food, growing or healing, having young, reacting to light/touch/sound, or keeping my inside stable.",
-  "Ask about how I live: Do I eat or make food? Do I get bigger or heal? Do I have young? Do I react to light or touch? How do I stay steady inside?"
+  "I did not understand your question. Please rephrase it.",
+  "I’m not sure what you mean. Try asking in a different way.",
+  "I don’t understand. Please ask the question more clearly."
 ];
 
 /* ============= keyword routing for 7 characteristics ============= */
@@ -257,7 +259,7 @@ spec.innerHTML=`<h2>${A.name} — Planet ${A.world}</h2><div class="meta">${A.lo
 addMsg('alien',`Hello. My name is <b>${A.name}</b>, and I come from the planet <b>${A.world}</b>. ${A.look}
 <br><br><b>Your task:</b> decide if I am alive using evidence from my behavior. <b>Ask about how I live, what I do, how I survive, etc.</b> Please do not ask me directly if I am alive.`);
 
-/* ============= routing & limits ============= */
+/* ============= routing & limits (2 clear + 1 vague total) ============= */
 let validCount=0, clearCount=0, vagueCount=0, locked=false;
 
 function updateStatus(){
@@ -280,7 +282,7 @@ function routeTopic(text){
   return 'clarify';
 }
 
-/* hidden rule: exactly 2 clear + 1 vague across the 3 valid answers */
+/* Guarantees exactly 2 clear + 1 vague across the 3 valid answers, in varied order */
 function chooseClarity(){
   const remaining=3-validCount;
   const needClear=2-clearCount, needVague=1-vagueCount;
@@ -288,8 +290,8 @@ function chooseClarity(){
     if(needClear>0) return 'clear';
     if(needVague>0) return 'vague';
   }
-  if(needClear>needVague) return 'clear';
-  if(needVague>needClear) return 'vague';
+  if(needClear>needVague) return Math.random()<0.7 ? 'clear' : 'vague';
+  if(needVague>needClear) return Math.random()<0.7 ? 'vague' : 'clear';
   if(clearCount>=2) return 'vague';
   if(vagueCount>=1) return 'clear';
   return Math.random()<0.5?'clear':'vague';
