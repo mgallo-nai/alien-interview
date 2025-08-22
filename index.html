@@ -68,7 +68,7 @@ const DEFLECTS=[
   "Labels are not evidence. Ask about my needs, how I change, whether I have young, how I respond, and how I keep going."
 ];
 const CLARIFY=[
-  "Please be more specific—ask about how I get food or fuel, how I grow or heal, how I have young, how I respond to light/touch/sound, or how I keep my inside steady.",
+  "Please be more specific—ask about how I get food or fuel, how I grow or heal, or whether I have young; or ask how I react to light/touch/sound, or how I keep my inside steady.",
   "I did not understand. Try asking about eating/making food, growing or healing, having young, reacting to light/touch/sound, or keeping my inside stable.",
   "Ask about how I live: Do I eat or make food? Do I get bigger or heal? Do I have young? Do I react to light or touch? How do I stay steady inside?"
 ];
@@ -80,16 +80,16 @@ const K={
   repro:['baby','offspring','young','egg','spawn','bud','spore','hatch','mate','partner','reproduce','pregnant','seed'],
   cells:['microscope','micro','tiny rooms','membrane','membranes','tissue','organ','inside structure','chamber'],
   stimuli:['touch','poke','tap','light','dark','shadow','sound','noise','hear','smell','scent','vibrate','move','respond','react'],
-  homeo:['hot','cold','warm','freeze','temperature','salt','salty','pH','acid','base','pressure','dry','wet','thirst','stable','balance','inside','core'],
+  homeo:['hot','cold','warm','freeze','temperature','salt','salty','ph','acid','base','pressure','dry','wet','thirst','stable','balance','inside','core'],
   evo:['generation','generations','ancestor','ancestors','change over time','changed over time','selection','adapt','adapted','adaptation','evolve','evolved','traits','lines']
 };
 
-/* ============= profiles per alien (to customize replies) ============= */
+/* ============= profiles per alien (source data) ============= */
 const PROFILES=[
   { id:'1', name:'Aurelian Phototroph', world:'Erythra',
     look:'I am a tall, stalk‑like organism with wide green fronds. I live in warm, shallow pools on the always‑sunny side of my tidally locked planet.',
     energy:{src:'sunlight',trigger:'bright light',measure:'sugar in my sap',activity:'stay active',alt:'shade'},
-    growth:{marker:'a new ring on my stalk',heal:'cuts close by the next day',regrow:'edges seal quickly'},
+    growth:{marker:'a new ring on my stalk each season',heal:'the cut closes by the next day',regrow:'new tissue forms beneath it'},
     repro:{mode1:'bulbs grow and drop off, then begin to move on their own',mode2:'pressing fronds with a partner forms a bead that later moves'},
     cells:{feature:'green grains inside tiny rooms',flow:'valves push sap in little pulses'},
     stimuli:{s1:{stim:'sudden bright light',resp:'my fronds curl shut quickly'}, s2:{stim:'a tap on the bowl',resp:'my cilia lean toward the rhythm'}},
@@ -112,14 +112,14 @@ const PROFILES=[
     growth:{marker:'a new pale ring after each flood',heal:'small tears seal by the next dawn',regrow:'my sheath thickens in winter'},
     repro:{mode1:'threads knot into beads that later twitch',mode2:'two of us braid whisker codes and a pouch grows'},
     cells:{feature:'waxy‑walled tiny rooms',flow:'little motors ferry ions along channels'},
-    stimuli:{s1:{stim:'ultraviolet light',resp:'I fold fins and dive'}, s2:{stim:'ammonia scent gradient',resp:'I move upstream and avoid sharp smoke'}},
+    stimuli:{s1:{stim:'ultraviolet light',resp:'I fold fins and dive'}, s2:{stim:'an ammonia scent gradient',resp:'I move upstream and avoid sharp smoke'}},
     homeo:{cold:'I start a heat‑making cycle until the gels stop stiffening',heat:'I spread fins to cool in warm currents',salt:'when brine thins, I pump water out to keep my mix steady'},
     evo:{sel1:'waxy‑walled lines survived thaws',sel2:'eyes that sensed ultraviolet avoided burn‑floes'}
   },
   { id:'4', name:'Desert Strider', world:'Sere',
     look:'I am a long‑legged runner with a pale coat and large ears. I travel across hot dunes by day and cold sands by night in thin air.',
-    energy:{src:'stored fat and sweet pulp',trigger:'eating sweet pulp',measure:'steady running pace',activity:'run farther',alt:'going without food'},
-    growth:{marker:'longer stride this season',heal:'a cracked claw grew back in days',regrow:'old scars get covered by new skin'},
+    energy:{src:'stored fat and sweet pulp',trigger:'eating sweet pulp',measure:'a steady running pace',activity:'run farther',alt:'going without food'},
+    growth:{marker:'a longer stride this season',heal:'a cracked claw grew back in a few days',regrow:'old scars get covered by new skin'},
     repro:{mode1:'two kits grow if the nest stays warm enough',mode2:'pairing at cold‑moon leads to young that drink milk'},
     cells:{feature:'disc‑shaped carriers in my blood',flow:'bone canals that carry supplies'},
     stimuli:{s1:{stim:'glare',resp:'my pupils clamp'}, s2:{stim:'a snap behind me',resp:'my ears pivot toward it'}},
@@ -129,7 +129,7 @@ const PROFILES=[
   { id:'5', name:'Colony Weaver', world:'Pelagia',
     look:'I am a branching colony made of many small units. I live on warm reef pillars where outer fronds face the sun and inner mouths feed.',
     energy:{src:'sunlight and plankton',trigger:'daylight on fronds',measure:'sharing of food through threads',activity:'keep feeding as a group',alt:'calm dark water with little flow'},
-    growth:{marker:'new rooms bud at the rim each week',heal:'clipped branches seal within minutes',regrow:'skeleton thickens during storms'},
+    growth:{marker:'new rooms bud at the rim each week',heal:'clipped branches seal within minutes',regrow:'the skeleton thickens during storms'},
     repro:{mode1:'we release tiny swimmers that settle and start new pillars',mode2:'a chip crawls and anchors elsewhere to begin a colony'},
     cells:{feature:'different tiny room types for jobs',flow:'pores open near prey while distant parts keep feeding'},
     stimuli:{s1:{stim:'a passing shadow',resp:'lashes retract locally'}, s2:{stim:'a touch on one tip',resp:'neighbors sting while others ignore'}},
@@ -139,7 +139,7 @@ const PROFILES=[
   { id:'6', name:'Sky Sailor', world:'Aerolyth',
     look:'I am a floating drifter with a clear gas sac, rim valves, and long tendrils. I ride warm air currents high in a gas‑giant atmosphere.',
     energy:{src:'sunlight and trace gases',trigger:'sun warming my sail',measure:'lift and glide height',activity:'rise without paddling',alt:'thin, poor air'},
-    growth:{marker:'gas sac wall thickens after rich currents',heal:'small tears knit within hours',regrow:'more valves appear along the rim with age'},
+    growth:{marker:'the gas sac wall thickens after rich currents',heal:'small tears knit within hours',regrow:'more valves appear along the rim with age'},
     repro:{mode1:'storm season releases dust‑like spores that wake in warm eddies',mode2:'when two of us entwine, pods swell and grow heavy'},
     cells:{feature:'layered membranes around tiny pockets',flow:'pump and sensor areas along the rim'},
     stimuli:{s1:{stim:'blue flashes',resp:'I dive'}, s2:{stim:'touch on my tendrils',resp:'I coil, puff, then relax'}},
@@ -168,11 +168,9 @@ const PROFILES=[
   }
 ];
 
-/* ============= build 3 clear + 3 vague per characteristic from profile ============= */
+/* ===== make replies for each profile (3 clear + 3 vague per characteristic) ===== */
 function makeReplies(p){
   const R={};
-
-  // ENERGY
   R.energy=[
     C(`I make and use food from ${p.energy.src}. When ${p.energy.trigger}, my ${p.energy.measure} rises within {mins} minutes.`),
     C(`If ${p.energy.trigger}, I ${p.energy.activity}; in ${p.energy.alt}, I slow down.`),
@@ -181,8 +179,6 @@ function makeReplies(p){
     V(`Being in ${p.energy.alt} makes me sluggish, although I can stay there.`),
     V(`I feel better around rich ${p.energy.src}, but I cannot explain why.`)
   ];
-
-  // GROWTH
   R.growth=[
     C(`I get bigger over time; I add ${p.growth.marker}.`),
     C(`If I am injured, ${p.growth.heal}.`),
@@ -191,18 +187,14 @@ function makeReplies(p){
     V(`My shape seems to change across seasons, but I do not measure it.`),
     V(`Sometimes old marks look different later.`)
   ];
-
-  // REPRODUCTION
   R.repro=[
-    C(`I have young. ${capitalize(p.repro.mode1)}.`),
+    C(`I have young. ${cap(p.repro.mode1)}.`),
     C(`With a partner, ${p.repro.mode2}.`),
     C(`When conditions are right, the small ones continue on their own.`),
     V(`Sometimes small pieces or shapes appear near me.`),
     V(`Bits sometimes separate from me, but I do not track them.`),
     V(`I notice tiny forms at times, though I am not sure what they become.`)
   ];
-
-  // CELLS (implied: tiny rooms/chambers; never says "cells")
   R.cells=[
     C(`Under a microscope, I am made of many tiny rooms with ${p.cells.feature}.`),
     C(`Thin slices show borders around those rooms, and ${p.cells.flow}.`),
@@ -211,8 +203,6 @@ function makeReplies(p){
     V(`I seem to have many small parts, but I cannot name them.`),
     V(`My inside looks divided, though I am not sure how.`)
   ];
-
-  // STIMULI (response)
   R.stimuli=[
     C(`When ${p.stimuli.s1.stim} happens, ${p.stimuli.s1.resp}.`),
     C(`If I sense ${p.stimuli.s2.stim}, ${p.stimuli.s2.resp}.`),
@@ -221,18 +211,14 @@ function makeReplies(p){
     V(`Touch or light gets my attention, but I do not always act.`),
     V(`Sometimes I react, sometimes I do not.`)
   ];
-
-  // HOMEOSTASIS (implied: keeping inside steady)
   R.homeo=[
-    C(`${capitalize(p.homeo.cold)}.`),
-    C(`${capitalize(p.homeo.heat)}.`),
-    C(`${capitalize(p.homeo.salt)}.`),
+    C(`${cap(p.homeo.cold)}.`),
+    C(`${cap(p.homeo.heat)}.`),
+    C(`${cap(p.homeo.salt)}.`),
     V(`Cold or heat makes me uncomfortable.`),
     V(`Too much salt or sour water feels wrong.`),
     V(`I try to keep my inside feeling just right.`)
   ];
-
-  // EVOLUTION (population change over generations)
   R.evo=[
     C(`Over many generations, ${p.evo.sel1}.`),
     C(`Across long ages, ${p.evo.sel2}.`),
@@ -241,13 +227,11 @@ function makeReplies(p){
     V(`Stories say our kind changed across ages.`),
     V(`We seem different than long ago, though I do not know how.`)
   ];
-
   return R;
 }
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
-function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
-
-/* Build full ALIENS with generated replies */
+/* Build full aliens with replies */
 const ALIENS = PROFILES.map(p => ({
   id:p.id, name:p.name, world:p.world, look:p.look, replies: makeReplies(p)
 }));
@@ -260,18 +244,14 @@ function chooseAlien(){
 }
 const A=chooseAlien();
 
-/* ============= UI ============= */
+/* ============= UI refs ============= */
 const spec=document.getElementById('spec');
-spec.innerHTML=`<h2>${A.name} — Planet ${A.world}</h2>
-  <div class="meta">${A.look}</div>`;
-const log=document.getElementById('log'),box=document.getElementById('textbox'),btn=document.getElementById('send'),status=document.getElementById('status');
+const log=document.getElementById('log');
+const box=document.getElementById('textbox');
+const btn=document.getElementById('send');
+const status=document.getElementById('status');
 
-function addMsg(role,text){
-  const row=document.createElement('div'); row.className=`msg ${role}`;
-  const who=role==='alien'?'Visitor':'You';
-  row.innerHTML=`<div class="bubble"><div class="role">${who}</div><div class="text">${text}</div></div>`;
-  log.appendChild(row); log.scrollTop=log.scrollHeight;
-}
+spec.innerHTML=`<h2>${A.name} — Planet ${A.world}</h2><div class="meta">${A.look}</div>`;
 
 /* Intro speech */
 addMsg('alien',`Hello. My name is <b>${A.name}</b>, and I come from the planet <b>${A.world}</b>. ${A.look}
@@ -315,6 +295,13 @@ function chooseClarity(){
   return Math.random()<0.5?'clear':'vague';
 }
 
+function addMsg(role,text){
+  const row=document.createElement('div'); row.className=`msg ${role}`;
+  const who=role==='alien'?'Visitor':'You';
+  row.innerHTML=`<div class="bubble"><div class="role">${who}</div><div class="text">${text}</div></div>`;
+  log.appendChild(row); log.scrollTop=log.scrollHeight;
+}
+
 function handle(text){
   if(locked) return;
   const t=text.trim(); if(!t) return;
@@ -338,8 +325,6 @@ function handle(text){
 }
 
 /* handlers */
-const btn=document.getElementById('send');
-const box=document.getElementById('textbox');
 btn.onclick=()=>{ handle(box.value); box.value=''; };
 box.addEventListener('keydown',e=>{ if(e.key==='Enter') btn.click(); });
 </script>
