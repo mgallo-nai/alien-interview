@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Alien Interview — 8 Species, 7 Characteristics</title>
+<title>Alien Interview — 8 Species, 7 Characteristics (All Clear + Debug)</title>
 <style>
   :root{--bg:#0b1020; --panel:#131a33; --text:#eef2ff; --accent:#7cf7d4; --muted:#93a1b3;}
   body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#060a18,#0b1020 30%,#0e1833);color:var(--text)}
@@ -27,7 +27,7 @@
   button{background:var(--accent);color:#04131a;border:none;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer}
   button:disabled{background:#374151;color:#888;cursor:not-allowed}
   .footer{font-size:.75rem;color:#94a3b8;text-align:center;margin:16px 0 8px}
-  .done{color:#f87171;font-weight:600}
+  .debugNote{color:#7cf7d4;font-size:.75rem;margin:4px 0 0 0;opacity:0.9}
 </style>
 </head>
 <body>
@@ -43,202 +43,213 @@
       <button id="send">Send</button>
     </div>
   </div>
-  <div class="footer">You may ask <b>3 valid questions</b>. Use the alien’s responses as evidence for your claim.</div>
+  <div class="footer">You may ask <b>3 valid questions</b>. Use the visitor’s responses as evidence for your claim.</div>
 </div>
 
 <script>
-/* ============= helpers & small templating ============= */
+/* ================= helpers ================= */
 const q=new URLSearchParams(location.search);
+const debugMode = q.get('debug') === 'true';
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const rand=(min,max)=>Math.floor(Math.random()*(max-min+1))+min;
-const varify=s=>s
-  .replace(/\{mins\}/g,()=>rand(2,8))
-  .replace(/\{days\}/g,()=>rand(3,7))
-  .replace(/\{mm\}/g,()=>rand(2,12));
+const varify=s=>s.replace(/\{mins\}/g,()=>rand(2,8)).replace(/\{days\}/g,()=>rand(3,7)).replace(/\{mm\}/g,()=>rand(2,12));
 const C=t=>({text:t,clarity:'clear'});
-const V=t=>({text:t,clarity:'vague'});
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 
-/* ============= guard lists ============= */
-const NEVERSAY=[
-  'alive','are you alive','is it alive','are you living','living or nonliving',
-  'characteristics of life','homeostasis','metabolism','reproduction','stimuli','cellular organization','cells','evolution','dna','genetic code'
-];
+/* ================= guard lists ================= */
+const NEVERSAY=['alive','are you alive','is it alive','are you living','living or nonliving'];
 const DEFLECTS=[
-  "Please do not ask if I am alive. Ask about how I live, what I do, how I survive, etc.",
-  "Labels are not evidence. Ask about my needs, how I change, whether I have young, how I respond, and how I keep going."
+  "Please do not ask if I am alive. Ask about how I function, what I do, how I function day to day.",
+  "Labels are not evidence. Ask about my needs, how I change, whether I have young, how I respond, and how I keep functioning."
 ];
-
-/* ✨ Your requested generic clarification (no hints) */
 const CLARIFY=[
-  "I did not understand. Try asking me how I live, what I do, how I survive, etc. Please do not ask me directly if I am alive.",
-  "I’m not sure what you mean. Try asking me how I live, what I do, how I survive, etc. Please do not ask me directly if I am alive.",
-  "I don’t understand. Try asking me how I live, what I do, how I survive, etc. Please do not ask me directly if I am alive."
+  "I did not understand. Try asking me how I function or what I do. Please do not ask me directly if I am alive.",
+  "I’m not sure what you mean. Please rephrase your question in a different way.",
+  "I don’t understand. Try asking about how I function."
 ];
 
-/* ============= keyword routing for 7 characteristics ============= */
-const K={
-  energy:['eat','food','hungry','fuel','drink','sugar','light','sunlight','photosynth','iron','mineral','gas','chem','feed','nutrient'],
-  growth:['grow','bigger','smaller','size','age','develop','mature','ring','molt','heal','scar','wound','regrow'],
-  repro:['baby','offspring','young','egg','spawn','bud','spore','hatch','mate','partner','reproduce','pregnant','seed'],
-  cells:['microscope','micro','tiny rooms','membrane','membranes','tissue','organ','inside structure','chamber'],
-  stimuli:['touch','poke','tap','light','dark','shadow','sound','noise','hear','smell','scent','vibrate','move','respond','react'],
-  homeo:['hot','cold','warm','freeze','temperature','salt','salty','ph','acid','base','pressure','dry','wet','thirst','stable','balance','inside','core'],
-  evo:['generation','generations','ancestor','ancestors','change over time','changed over time','selection','adapt','adapted','adaptation','evolve','evolved','traits','lines']
+/* ================= keyword routing (your lists, longest-phrase priority) ================= */
+const K = {
+  stimuli: ['respond to environment','respond to change','stimulus','response','respond'],
+  growth: ['get bigger','change size','change form','metamorphosis','differentiate','grow','develop','growth','development'],
+  repro:  ['sexually reproduce','asexually reproduce','make more of your kind','reproduce','reproduction'],
+  energy: ['photosynthesis','metabolize','metabolism','calories','nutrition','nutrients','eat','food','energy'],
+  genetic:['use dna to make proteins','genetic code','use dna','dna','make proteins'],
+  homeo:  ['regulate body temperature','regulate blood sugar','regulate oxygen','regulate gasses','keep body conditions stable','maintain','regulation','homeostasis'],
+  cells:  ['organ systems','organ','organs','tissues','contain organelles','made of cells','multicellular','unicellular'],
+  evo:    ['common ancestor','species change','change over time','offspring better','fossil','evolution','evolve','generations']
 };
+const LABELS = {
+  stimuli:'Respond to Environment', growth:'Grow & Develop', repro:'Reproduction', energy:'Obtain & Use Energy',
+  genetic:'Universal Genetic Code', homeo:'Maintain Homeostasis', cells:'Made of Cells', evo:'Evolve'
+};
+const PRIORITY = ['stimuli','homeo','energy','growth','repro','cells','genetic','evo'];
 
-/* ============= profiles per alien (source data) ============= */
+function bestCategory(text){
+  const s = text.toLowerCase();
+  if(NEVERSAY.some(w=>s.includes(w))) return 'deflect';
+  let best = {cat:null,len:0};
+  for(const cat of Object.keys(K)){
+    for(const phrase of K[cat]){
+      const p = phrase.toLowerCase();
+      if(s.includes(p) && p.length > best.len){ best = {cat,len:p.length}; }
+    }
+  }
+  if(!best.cat) return 'clarify';
+  const matches=[];
+  for(const cat of Object.keys(K)){
+    for(const phrase of K[cat]){
+      const p = phrase.toLowerCase();
+      if(s.includes(p) && p.length===best.len) matches.push(cat);
+    }
+  }
+  if(matches.length===1) return best.cat;
+  for(const p of PRIORITY){ if(matches.includes(p)) return p; }
+  return best.cat;
+}
+
+/* ================= alien profiles (ONLY uses “function”) ================= */
 const PROFILES=[
   { id:'1', name:'Aurelian Phototroph', world:'Erythra',
-    look:'I am a tall, stalk‑like organism with wide green fronds. I live in warm, shallow pools on the always‑sunny side of my tidally locked planet.',
+    look:'I am a tall, stalk-like organism with wide green fronds. I function in warm, shallow pools on the always-sunny side of my tidally locked planet.',
     energy:{src:'sunlight',trigger:'bright light',measure:'sugar in my sap',activity:'stay active',alt:'shade'},
     growth:{marker:'a new ring on my stalk each season',heal:'the cut closes by the next day',regrow:'new tissue forms beneath it'},
-    repro:{mode1:'bulbs grow and drop off, then begin to move on their own',mode2:'pressing fronds with a partner forms a bead that later moves'},
+    repro:{mode1:'bulbs form on my base and drop away; each begins moving on its own',mode2:'pressing fronds with a partner forms a bead that later moves'},
     cells:{feature:'green grains inside tiny rooms',flow:'valves push sap in little pulses'},
     stimuli:{s1:{stim:'sudden bright light',resp:'my fronds curl shut quickly'}, s2:{stim:'a tap on the bowl',resp:'my cilia lean toward the rhythm'}},
-    homeo:{cold:'I close pores and reroute warm flow until shivering stops',heat:'I open fronds to cool',salt:'I push out water at the edge when salt stings'},
-    evo:{sel1:'lines with dawn‑sensing pores stayed common',sel2:'windward families with thicker stalks outlasted others'}
+    homeo:{cold:'I close pores and redirect warm flow until shivering stops',heat:'I open fronds to cool',salt:'I push out water at the edge when salt stings'},
+    genetic:{info:'patterns in the tiny rooms guide how new parts are formed',proof:'marks on these patterns match the parts formed later'},
+    evo:{sel1:'lines with dawn-sensing pores stayed common',sel2:'windward families with thicker stalks outlasted others'}
   },
   { id:'2', name:'Ferrivore Lithotroph', world:'Varron',
-    look:'I am a low crawler with hard ridge plates and sensing whiskers. I live in rust‑colored caves where mineral water drips through iron seams.',
+    look:'I am a low crawler with hard ridge plates and sensing whiskers. I function in rust-colored caves where mineral water drips through iron seams.',
     energy:{src:'iron minerals',trigger:'eating iron filings',measure:'core warmth',activity:'keep moving',alt:'plain water'},
     growth:{marker:'plates thicken after rich ore',heal:'cracks knit within a few days',regrow:'new plates layer over scars'},
-    repro:{mode1:'a pebble‑egg hardens and later opens',mode2:'a plate chip can bud a runt in the right seep'},
-    cells:{feature:'iron grains inside tiny chambers',flow:'alternating acid and buffer channels move slurry'},
+    repro:{mode1:'a pebble-hard lump forms and later opens with a small one',mode2:'a plate chip can start a runt in the right seep'},
+    cells:{feature:'iron grains inside tiny chambers',flow:'alternating sour and gentle channels move slurry'},
     stimuli:{s1:{stim:'hammer taps',resp:'I turn before the echo fades'}, s2:{stim:'whisker touch',resp:'my feeding fan folds at once'}},
-    homeo:{cold:'I throttle heat‑making reactions to steady my core',heat:'I vent warmth along side seams',salt:'I purge brine through side vents when salts spike'},
-    evo:{sel1:'thicker‑plated lines survived toxin vents',sel2:'enzymes that worked in low oxygen spread in deep tunnels'}
+    homeo:{cold:'I throttle heat-making reactions to keep my core steady',heat:'I vent warmth along side seams',salt:'I purge brine through side vents when salts spike'},
+    genetic:{info:'instruction threads coil inside the chambers',proof:'when a thread mark is changed, the next plate ridge matches that mark'},
+    evo:{sel1:'thicker-plated lines persisted near toxin vents',sel2:'helpers that worked in low oxygen spread in deep tunnels'}
   },
   { id:'3', name:'Cryo Ammonoform', world:'Thalos',
-    look:'I am a soft, gel‑bodied swimmer with thin fins. I live in very cold ammonia seas where my breath makes a purple cloud.',
-    energy:{src:'nitrite and nitrate in the water',trigger:'feeding on those chemicals',measure:'a warm band in my core',activity:'beat my gills faster',alt:'plain water'},
+    look:'I am a soft, gel-bodied swimmer with thin fins. I function in very cold ammonia seas where my breath forms a purple cloud.',
+    energy:{src:'nitrite and nitrate in the water',trigger:'taking in those chemicals',measure:'a warm band in my core',activity:'beat my gills faster',alt:'plain water'},
     growth:{marker:'a new pale ring after each flood',heal:'small tears seal by the next dawn',regrow:'my sheath thickens in winter'},
     repro:{mode1:'threads knot into beads that later twitch',mode2:'two of us braid whisker codes and a pouch grows'},
-    cells:{feature:'waxy‑walled tiny rooms',flow:'little motors ferry ions along channels'},
+    cells:{feature:'waxy-walled tiny rooms',flow:'little carriers ferry ions along channels'},
     stimuli:{s1:{stim:'ultraviolet light',resp:'I fold fins and dive'}, s2:{stim:'an ammonia scent gradient',resp:'I move upstream and avoid sharp smoke'}},
-    homeo:{cold:'I start a heat‑making cycle until the gels stop stiffening',heat:'I spread fins to cool in warm currents',salt:'when brine thins, I pump water out to keep my mix steady'},
-    evo:{sel1:'waxy‑walled lines survived thaws',sel2:'eyes that sensed ultraviolet avoided burn‑floes'}
+    homeo:{cold:'I start a heat-making cycle until the gels stop stiffening',heat:'I spread fins to cool in warm currents',salt:'when brine thins, I pump water out to keep my mix steady'},
+    genetic:{info:'coded spirals sit inside my tiny rooms',proof:'when the spiral order changes, the next fin edge grows different bumps'},
+    evo:{sel1:'waxy-walled lines avoided cracking during thaws',sel2:'eyes that sensed ultraviolet avoided burn-floes'}
   },
   { id:'4', name:'Desert Strider', world:'Sere',
-    look:'I am a long‑legged runner with a pale coat and large ears. I travel across hot dunes by day and cold sands by night in thin air.',
-    energy:{src:'stored fat and sweet pulp',trigger:'eating sweet pulp',measure:'a steady running pace',activity:'run farther',alt:'going without food'},
+    look:'I am a long-legged runner with a pale coat and large ears. I function across hot dunes by day and cold sands by night in thin air.',
+    energy:{src:'stored fat and sweet pulp',trigger:'eating sweet pulp',measure:'steady running pace',activity:'run farther',alt:'going without food'},
     growth:{marker:'a longer stride this season',heal:'a cracked claw grew back in a few days',regrow:'old scars get covered by new skin'},
-    repro:{mode1:'two kits grow if the nest stays warm enough',mode2:'pairing at cold‑moon leads to young that drink milk'},
-    cells:{feature:'disc‑shaped carriers in my blood',flow:'bone canals that carry supplies'},
+    repro:{mode1:'two small ones develop if the nest stays warm',mode2:'pairing at cold-moon leads to young that drink milk'},
+    cells:{feature:'disc-shaped carriers in my blood',flow:'bone canals that carry supplies'},
     stimuli:{s1:{stim:'glare',resp:'my pupils clamp'}, s2:{stim:'a snap behind me',resp:'my ears pivot toward it'}},
     homeo:{cold:'I shiver at night to keep my core steady',heat:'I pant and open heat webs in midday',salt:'brine restores me after salt loss'},
-    evo:{sel1:'long‑leg lines crossed scalding dunes and spread',sel2:'paler coats shed heat better under noon suns'}
+    genetic:{info:'coded instructions are stored in each tiny room',proof:'those instructions are copied before a new small one forms'},
+    evo:{sel1:'long-leg lines crossed scalding dunes and spread',sel2:'paler coats shed heat better under noon suns'}
   },
   { id:'5', name:'Colony Weaver', world:'Pelagia',
-    look:'I am a branching colony made of many small units. I live on warm reef pillars where outer fronds face the sun and inner mouths feed.',
+    look:'I am a branching colony made of many small units. I function on warm reef pillars where outer fronds face the sun and inner mouths feed.',
     energy:{src:'sunlight and plankton',trigger:'daylight on fronds',measure:'sharing of food through threads',activity:'keep feeding as a group',alt:'calm dark water with little flow'},
     growth:{marker:'new rooms bud at the rim each week',heal:'clipped branches seal within minutes',regrow:'the skeleton thickens during storms'},
     repro:{mode1:'we release tiny swimmers that settle and start new pillars',mode2:'a chip crawls and anchors elsewhere to begin a colony'},
     cells:{feature:'different tiny room types for jobs',flow:'pores open near prey while distant parts keep feeding'},
     stimuli:{s1:{stim:'a passing shadow',resp:'lashes retract locally'}, s2:{stim:'a touch on one tip',resp:'neighbors sting while others ignore'}},
-    homeo:{cold:'cool currents slow us and we reduce openings',heat:'heat spikes open canals to flush warm broth',salt:'freshwater rush makes us release stored salts to steady stings'},
+    homeo:{cold:'cool currents slow us and we reduce openings',heat:'heat spikes open canals to flush warm broth',salt:'freshwater rush makes us release stored salts to keep our mix steady'},
+    genetic:{info:'shared codes travel along our threads',proof:'a changed code in one part spreads and matching parts form elsewhere'},
     evo:{sel1:'colonies with divided jobs outlasted storms',sel2:'stiffer skeleton lines stayed higher in waves'}
   },
   { id:'6', name:'Sky Sailor', world:'Aerolyth',
-    look:'I am a floating drifter with a clear gas sac, rim valves, and long tendrils. I ride warm air currents high in a gas‑giant atmosphere.',
+    look:'I am a floating drifter with a clear gas sac, rim valves, and long tendrils. I function high in a gas-giant atmosphere and ride warm air currents.',
     energy:{src:'sunlight and trace gases',trigger:'sun warming my sail',measure:'lift and glide height',activity:'rise without paddling',alt:'thin, poor air'},
     growth:{marker:'the gas sac wall thickens after rich currents',heal:'small tears knit within hours',regrow:'more valves appear along the rim with age'},
-    repro:{mode1:'storm season releases dust‑like spores that wake in warm eddies',mode2:'when two of us entwine, pods swell and grow heavy'},
+    repro:{mode1:'storm season releases dust-like specks that wake in warm eddies',mode2:'when two of us entwine, pods swell and grow heavy'},
     cells:{feature:'layered membranes around tiny pockets',flow:'pump and sensor areas along the rim'},
     stimuli:{s1:{stim:'blue flashes',resp:'I dive'}, s2:{stim:'touch on my tendrils',resp:'I coil, puff, then relax'}},
-    homeo:{cold:'chills make me flutter to stir warm pockets',heat:'heat makes me vent and shade pigments',salt:'salt‑dust clogs valves, so I pulse them clear'},
-    evo:{sel1:'sturdier sails crossed wind shears that shredded others',sel2:'spores that woke only in safe eddies left more heirs'}
+    homeo:{cold:'chills make me flutter to stir warm pockets',heat:'heat makes me vent and shade pigments',salt:'salt-dust clogs valves, so I pulse them clear'},
+    genetic:{info:'pattern sheets inside each pocket guide part-building',proof:'copied patterns appear before new pods form'},
+    evo:{sel1:'sturdier sails crossed wind shears that shredded others',sel2:'specks that woke only in safe eddies left more heirs'}
   },
   { id:'7', name:'Mire Crawler', world:'Morass',
-    look:'I am a slug‑like scavenger with small bristles on my sides. I live in warm, poisonous swamps and often leave a thick paste trail behind me.',
+    look:'I am a slug-like scavenger with small bristles on my sides. I function in warm, poisonous swamps and often leave a thick paste trail behind me.',
     energy:{src:'rotting plants and swamp slurry',trigger:'feeding on rot',measure:'body warmth and crawl speed',activity:'crawl faster',alt:'metal salts in the muck'},
     growth:{marker:'a shed skin after each molt',heal:'fresh skin covers scars',regrow:'lost feelers grow back'},
-    repro:{mode1:'slimy strings later open with tiny young',mode2:'twisting a neck frill with a partner leads to eggs by dawn'},
+    repro:{mode1:'slimy strings later open with tiny ones',mode2:'twisting a neck frill with a partner leads to eggs by dawn'},
     cells:{feature:'detox pockets and tiny beads under the skin',flow:'valve areas that gate poisons in the gut lining'},
     stimuli:{s1:{stim:'touch on my flank',resp:'I twitch away immediately'}, s2:{stim:'rot scent',resp:'I move toward it; sharp smoke sends me under'}},
     homeo:{cold:'chill makes me clump and shiver',heat:'heat makes me spread slime to cool',salt:'salt flushes through side pores when brine rises'},
-    evo:{sel1:'lines rich in detox enzymes persisted where others perished',sel2:'thicker slime coats spread in hotter marshes'}
+    genetic:{info:'coded beads sit in each tiny room',proof:'when a bead’s order changes, the next shell patch forms a new pattern'},
+    evo:{sel1:'lines rich in detox helpers persisted where others perished',sel2:'thicker slime coats spread in hotter marshes'}
   },
   { id:'8', name:'Crystal Singer', world:'Umbra',
-    look:'I am a shimmering, faceted being with many inner chambers. I live in cool, shadowed mountain caves and I glow when I hear certain sounds.',
+    look:'I am a shimmering, faceted being with many inner chambers. I function in cool, shadowed mountain caves and I glow when I hear certain sounds.',
     energy:{src:'minerals in dripping water',trigger:'drinking mineral drips',measure:'glow brightness and inner hum',activity:'shine brighter',alt:'plain water'},
     growth:{marker:'thin layers added each season',heal:'cracks fill with new material within days',regrow:'edges widen over time'},
-    repro:{mode1:'singing together grows a small shard that later separates',mode2:'a moist splinter begins to tremble and keep growing'},
+    repro:{mode1:'singing together grows a small shard that later separates',mode2:'a moist splinter begins to tremble and keeps growing'},
     cells:{feature:'a lattice of tiny chambers',flow:'pockets that pinch and fuse in waves'},
     stimuli:{s1:{stim:'certain notes',resp:'I glow brighter'}, s2:{stim:'a gentle touch',resp:'a tremor runs out and returns'}},
     homeo:{cold:'chill makes me hum to warm my core',heat:'heat makes me vent a shimmer gas',salt:'salty drips are shunted to side pockets'},
-    evo:{sel1:'harmonic lines that matched the caves survived while silent lines cracked',sel2:'thicker skins kept singing through drought years'}
+    genetic:{info:'arranged marks within the chambers tell how to assemble new edges',proof:'copying those marks leads to the same kind of glow bands'},
+    evo:{sel1:'harmonic lines that matched the caves endured while silent lines cracked',sel2:'thicker skins kept singing through drought years'}
   }
 ];
 
-/* ===== make replies for each profile (3 clear + 3 vague per characteristic) ===== */
+/* ================= generate replies (ALL CLEAR; avoid vocab labels in answers) ================= */
 function makeReplies(p){
   const R={};
   R.energy=[
     C(`I make and use food from ${p.energy.src}. When ${p.energy.trigger}, my ${p.energy.measure} rises within {mins} minutes.`),
     C(`If ${p.energy.trigger}, I ${p.energy.activity}; in ${p.energy.alt}, I slow down.`),
-    C(`After I take in ${p.energy.src}, I can ${p.energy.activity} for about {mins} minutes.`),
-    V(`I prefer being near ${p.energy.src}.`),
-    V(`Being in ${p.energy.alt} makes me sluggish, although I can stay there.`),
-    V(`I feel better around rich ${p.energy.src}, but I cannot explain why.`)
+    C(`After I take in ${p.energy.src}, I can ${p.energy.activity} for about {mins} minutes.`)
   ];
   R.growth=[
     C(`I get bigger over time; I add ${p.growth.marker}.`),
     C(`If I am injured, ${p.growth.heal}.`),
-    C(`If you mark me, the mark shifts as ${p.growth.regrow}.`),
-    V(`I think I used to be smaller.`),
-    V(`My shape seems to change across seasons, but I do not measure it.`),
-    V(`Sometimes old marks look different later.`)
+    C(`If you mark me, the mark shifts as ${p.growth.regrow}.`)
   ];
   R.repro=[
-    C(`I have young. ${cap(p.repro.mode1)}.`),
+    C(`${cap(p.repro.mode1)}.`),
     C(`With a partner, ${p.repro.mode2}.`),
-    C(`When conditions are right, the small ones continue on their own.`),
-    V(`Sometimes small pieces or shapes appear near me.`),
-    V(`Bits sometimes separate from me, but I do not track them.`),
-    V(`I notice tiny forms at times, though I am not sure what they become.`)
+    C(`When conditions are right, the small ones continue on their own.`)
   ];
   R.cells=[
-    C(`Under a microscope, I am made of many tiny rooms with ${p.cells.feature}.`),
+    C(`Under a microscope, I appear as many tiny rooms with ${p.cells.feature}.`),
     C(`Thin slices show borders around those rooms, and ${p.cells.flow}.`),
-    C(`The tiny rooms have soft edges that hold in their contents.`),
-    V(`Up close I look patterned inside.`),
-    V(`I seem to have many small parts, but I cannot name them.`),
-    V(`My inside looks divided, though I am not sure how.`)
+    C(`The tiny rooms have soft edges that hold in their contents.`)
   ];
   R.stimuli=[
     C(`When ${p.stimuli.s1.stim} happens, ${p.stimuli.s1.resp}.`),
     C(`If I sense ${p.stimuli.s2.stim}, ${p.stimuli.s2.resp}.`),
-    C(`I change my movement quickly after a sudden touch or change in light.`),
-    V(`I notice changes around me.`),
-    V(`Touch or light gets my attention, but I do not always act.`),
-    V(`Sometimes I react, sometimes I do not.`)
+    C(`I change my movement quickly after a sudden touch or change in light.`)
   ];
   R.homeo=[
     C(`${cap(p.homeo.cold)}.`),
     C(`${cap(p.homeo.heat)}.`),
-    C(`${cap(p.homeo.salt)}.`),
-    V(`Cold or heat makes me uncomfortable.`),
-    V(`Too much salt or sour water feels wrong.`),
-    V(`I try to keep my inside feeling just right.`)
+    C(`${cap(p.homeo.salt)}.`)
+  ];
+  R.genetic=[
+    C(`Inside my tiny rooms are ${p.genetic.info}.`),
+    C(`Before a new part forms, the instructions are copied and passed on.`),
+    C(`I keep a set of patterns that guide how new pieces are assembled; ${p.genetic.proof}.`)
   ];
   R.evo=[
     C(`Over many generations, ${p.evo.sel1}.`),
     C(`Across long ages, ${p.evo.sel2}.`),
-    C(`Families like mine changed over time and kept traits that helped.`),
-    V(`Old ones were not quite like me.`),
-    V(`Stories say our kind changed across ages.`),
-    V(`We seem different than long ago, though I do not know how.`)
+    C(`Families like mine changed over time and kept traits that helped.`)
   ];
   return R;
 }
-function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
-/* Build full aliens with replies */
-const ALIENS = PROFILES.map(p => ({
-  id:p.id, name:p.name, world:p.world, look:p.look, replies: makeReplies(p)
-}));
+/* Build aliens with replies */
+const ALIENS = PROFILES.map(p => ({ id:p.id, name:p.name, world:p.world, look:p.look, replies: makeReplies(p) }));
 
-/* ============= choose alien (random or ?alien=) ============= */
+/* ================= choose alien ================= */
 function chooseAlien(){
   const wanted=(q.get('alien')||'').toLowerCase().trim();
   if(!wanted) return pick(ALIENS);
@@ -246,7 +257,7 @@ function chooseAlien(){
 }
 const A=chooseAlien();
 
-/* ============= UI refs ============= */
+/* ================= UI ================= */
 const spec=document.getElementById('spec');
 const log=document.getElementById('log');
 const box=document.getElementById('textbox');
@@ -255,53 +266,26 @@ const status=document.getElementById('status');
 
 spec.innerHTML=`<h2>${A.name} — Planet ${A.world}</h2><div class="meta">${A.look}</div>`;
 
-/* Intro speech */
-addMsg('alien',`Hello. My name is <b>${A.name}</b>, and I come from the planet <b>${A.world}</b>. ${A.look}
-<br><br><b>Your task:</b> decide if I am alive using evidence from my behavior. <b>Ask about how I live, what I do, how I survive, etc.</b> Please do not ask me directly if I am alive.`);
-
-/* ============= routing & limits (2 clear + 1 vague total) ============= */
-let validCount=0, clearCount=0, vagueCount=0, locked=false;
-
-function updateStatus(){
-  status.textContent = locked
-    ? "Interview complete: you have 3 evidence responses."
-    : `Valid questions answered: ${validCount}/3`;
-}
-updateStatus();
-
-function routeTopic(text){
-  const s=text.toLowerCase();
-  if(NEVERSAY.some(w=>s.includes(w))) return 'deflect';
-  if(K.energy.some(k=>s.includes(k))) return 'energy';
-  if(K.growth.some(k=>s.includes(k))) return 'growth';
-  if(K.repro.some(k=>s.includes(k))) return 'repro';
-  if(K.cells.some(k=>s.includes(k))) return 'cells';
-  if(K.stimuli.some(k=>s.includes(k))) return 'stimuli';
-  if(K.homeo.some(k=>s.includes(k))) return 'homeo';
-  if(K.evo.some(k=>s.includes(k))) return 'evo';
-  return 'clarify';
-}
-
-/* Guarantees exactly 2 clear + 1 vague across the 3 valid answers, in varied order */
-function chooseClarity(){
-  const remaining=3-validCount;
-  const needClear=2-clearCount, needVague=1-vagueCount;
-  if(remaining===1){
-    if(needClear>0) return 'clear';
-    if(needVague>0) return 'vague';
-  }
-  if(needClear>needVague) return Math.random()<0.7 ? 'clear' : 'vague';
-  if(needVague>needClear) return Math.random()<0.7 ? 'vague' : 'clear';
-  if(clearCount>=2) return 'vague';
-  if(vagueCount>=1) return 'clear';
-  return Math.random()<0.5?'clear':'vague';
-}
-
 function addMsg(role,text){
   const row=document.createElement('div'); row.className=`msg ${role}`;
   const who=role==='alien'?'Visitor':'You';
   row.innerHTML=`<div class="bubble"><div class="role">${who}</div><div class="text">${text}</div></div>`;
   log.appendChild(row); log.scrollTop=log.scrollHeight;
+}
+
+/* Intro — ONLY “function” */
+addMsg('alien',`Hello. My name is <b>${A.name}</b>, and I come from the planet <b>${A.world}</b>. ${A.look}
+<br><br><b>Your task:</b> decide if I should be considered alive using evidence from my behavior. <b>Ask about how I function and what I do.</b> Please do not ask me directly if I am alive.`);
+
+/* ================= routing & limits ================= */
+let validCount=0, locked=false;
+function updateStatus(){ status.textContent = locked ? "Interview complete: you have 3 evidence responses." : `Valid questions answered: ${validCount}/3`; }
+updateStatus();
+
+function routeTopic(text){
+  const s=text.toLowerCase();
+  if(NEVERSAY.some(w=>s.includes(w))) return 'deflect';
+  return bestCategory(s);
 }
 
 function handle(text){
@@ -310,25 +294,23 @@ function handle(text){
   addMsg('user',t);
 
   const topic=routeTopic(t);
-
   if(topic==='deflect'){ addMsg('alien',pick(DEFLECTS)); return; }
   if(topic==='clarify'){ addMsg('alien',pick(CLARIFY)); return; }
 
-  const want=chooseClarity();
   const bucket=A.replies[topic];
-  const options=bucket.filter(r=>r.clarity===want);
-  const reply=options.length?pick(options):pick(bucket);
+  const reply=pick(bucket.filter(r=>r.clarity==='clear'));
   addMsg('alien',varify(reply.text));
 
+  if (debugMode) addMsg('alien', `<span class="debugNote">(Matched: ${LABELS[topic]||topic})</span>`);
+
   validCount++;
-  if(want==='clear') clearCount++; else vagueCount++;
   if(validCount>=3){ locked=true; box.disabled=true; btn.disabled=true; }
   updateStatus();
 }
 
-/* handlers */
 btn.onclick=()=>{ handle(box.value); box.value=''; };
 box.addEventListener('keydown',e=>{ if(e.key==='Enter') btn.click(); });
 </script>
 </body>
 </html>
+
