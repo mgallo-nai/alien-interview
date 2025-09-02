@@ -59,7 +59,7 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 /* ================= guard lists ================= */
 const NEVERSAY=['alive','are you alive','is it alive','are you living','living or nonliving'];
 const DEFLECTS=[
-  "Please do not ask if I am alive. Ask about how I function, what I do, how I function day to day.",
+  "Please do not ask if I am alive. Ask about how I function and what I do.",
   "Labels are not evidence. Ask about my needs, how I change, whether I have young, how I respond, and how I keep functioning."
 ];
 const CLARIFY=[
@@ -277,9 +277,15 @@ function addMsg(role,text){
 addMsg('alien',`Hello. My name is <b>${A.name}</b>, and I come from the planet <b>${A.world}</b>. ${A.look}
 <br><br><b>Your task:</b> decide if I should be considered alive using evidence from my behavior. <b>Ask about how I function and what I do.</b> Please do not ask me directly if I am alive.`);
 
-/* ================= routing & limits ================= */
+/* ================= routing, limits, and duplicate-topic guard ================= */
 let validCount=0, locked=false;
-function updateStatus(){ status.textContent = locked ? "Interview complete: you have 3 evidence responses." : `Valid questions answered: ${validCount}/3`; }
+const answeredTopics = new Set(); // tracks which characteristics were already answered
+
+function updateStatus(){
+  status.textContent = locked
+    ? "Interview complete: you have 3 evidence responses."
+    : `Valid questions answered: ${validCount}/3`;
+}
 updateStatus();
 
 function routeTopic(text){
@@ -294,8 +300,16 @@ function handle(text){
   addMsg('user',t);
 
   const topic=routeTopic(t);
+
   if(topic==='deflect'){ addMsg('alien',pick(DEFLECTS)); return; }
   if(topic==='clarify'){ addMsg('alien',pick(CLARIFY)); return; }
+
+  // If student repeats the same characteristic, do not count and prompt for a new one
+  if(answeredTopics.has(topic)){
+    addMsg('alien',"We have already discussed this topic. Ask a new question.");
+    if (debugMode) addMsg('alien', `<span class="debugNote">(Repeated: ${LABELS[topic]||topic} — not counted)</span>`);
+    return;
+  }
 
   const bucket=A.replies[topic];
   const reply=pick(bucket.filter(r=>r.clarity==='clear'));
@@ -303,6 +317,7 @@ function handle(text){
 
   if (debugMode) addMsg('alien', `<span class="debugNote">(Matched: ${LABELS[topic]||topic})</span>`);
 
+  answeredTopics.add(topic);
   validCount++;
   if(validCount>=3){ locked=true; box.disabled=true; btn.disabled=true; }
   updateStatus();
@@ -313,4 +328,5 @@ box.addEventListener('keydown',e=>{ if(e.key==='Enter') btn.click(); });
 </script>
 </body>
 </html>
+
 
