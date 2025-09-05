@@ -65,7 +65,7 @@ const DEFLECTS=[
 const CLARIFY=[
   "I did not understand. Try asking me how I function or what I do. Please do not ask me directly if I am alive.",
   "I’m not sure what you mean. Please rephrase your question in a different way.",
-  "I don’t understand. Try asking about how I function."
+  "I don't understand. Try asking a more specific question about how I function."
 ];
 
 /* ================= keyword routing (your lists, longest-phrase priority) ================= */
@@ -108,7 +108,7 @@ function bestCategory(text){
   return best.cat;
 }
 
-/* ================= alien profiles (ONLY uses “function”) ================= */
+/* ================= alien profiles (ONLY “function”; Vorsass included) ================= */
 const PROFILES=[
   { id:'1', name:'Aurelian Phototroph', world:'Erythra',
     look:'I am a tall, stalk-like organism with wide green fronds. I function in warm, shallow pools on the always-sunny side of my tidally locked planet.',
@@ -176,7 +176,7 @@ const PROFILES=[
     genetic:{info:'pattern sheets inside each pocket guide part-building',proof:'copied patterns appear before new pods form'},
     evo:{sel1:'sturdier sails crossed wind shears that shredded others',sel2:'specks that woke only in safe eddies left more heirs'}
   },
-  { id:'7', name:'Mire Crawler', world:'Morass',
+  { id:'7', name:'Mire Crawler', world:'Vorsass',
     look:'I am a slug-like scavenger with small bristles on my sides. I function in warm, poisonous swamps and often leave a thick paste trail behind me.',
     energy:{src:'rotting plants and swamp slurry',trigger:'feeding on rot',measure:'body warmth and crawl speed',activity:'crawl faster',alt:'metal salts in the muck'},
     growth:{marker:'a shed skin after each molt',heal:'fresh skin covers scars',regrow:'lost feelers grow back'},
@@ -249,7 +249,7 @@ function makeReplies(p){
 /* Build aliens with replies */
 const ALIENS = PROFILES.map(p => ({ id:p.id, name:p.name, world:p.world, look:p.look, replies: makeReplies(p) }));
 
-/* ================= choose alien ================= */
+/* ================= choose alien (random or ?alien=) ================= */
 function chooseAlien(){
   const wanted=(q.get('alien')||'').toLowerCase().trim();
   if(!wanted) return pick(ALIENS);
